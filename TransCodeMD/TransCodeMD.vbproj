@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>TransCodeMD</RootNamespace>
+    <TargetFramework>net7.0</TargetFramework>
+    <AssemblyVersion>1.0.1.344</AssemblyVersion>
+    <FileVersion>1.0.1.344</FileVersion>
+  </PropertyGroup>
+
+</Project>
