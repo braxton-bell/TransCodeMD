@@ -33,14 +33,27 @@ Module Program
     End Sub
 
     ' Define the event handlers.
+
+    'Private Sub OnChanged(sender As Object, e As FileSystemEventArgs)
+    '    ' Specify what is done when a file is changed, created, or deleted.
+    '    Console.WriteLine($"File: {e.FullPath} {e.ChangeType}")
+    'End Sub
     Private Sub OnChanged(sender As Object, e As FileSystemEventArgs)
-        ' Specify what is done when a file is changed, created, or deleted.
-        Console.WriteLine($"File: {e.FullPath} {e.ChangeType}")
+        If IsFileOfInterest(e.FullPath) Then
+            ' Implement your sync logic here
+            Console.WriteLine($"File of interest changed: {e.FullPath} {e.ChangeType}")
+        End If
     End Sub
 
     Private Sub OnRenamed(sender As Object, e As RenamedEventArgs)
         ' Specify what is done when a file is renamed.
         Console.WriteLine($"File: {e.OldFullPath} renamed to {e.FullPath}")
     End Sub
+
+    Private Function IsFileOfInterest(filePath As String) As Boolean
+        Dim extensionsOfInterest As String() = {".py", ".cs", ".vb", ".ps1", ".md"}
+        Dim fileExtension As String = Path.GetExtension(filePath)
+        Return extensionsOfInterest.Contains(fileExtension.ToLower())
+    End Function
 
 End Module
