@@ -4,8 +4,20 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>TransCodeMD</RootNamespace>
     <TargetFramework>net7.0</TargetFramework>
-    <AssemblyVersion>1.0.1.344</AssemblyVersion>
-    <FileVersion>1.0.1.344</FileVersion>
+    <AssemblyVersion>1.0.4.344</AssemblyVersion>
+    <FileVersion>1.0.4.344</FileVersion>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="sandbox\" />
+    <Folder Include="utilities\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.0" />
+  </ItemGroup>
 
 </Project>
