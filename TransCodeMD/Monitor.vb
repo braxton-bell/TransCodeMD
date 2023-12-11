@@ -143,7 +143,9 @@ Public Class Monitor
 
         ' Read the source file and wrap its contents in Markdown code block syntax
         sourceContent = File.ReadAllText(sourceContent)
-        Dim markdownContent As String = $"```{langId}{Environment.NewLine}{sourceContent}{Environment.NewLine}```"
+        Dim markdownContent As String
+
+        markdownContent = $"```{langId}{Environment.NewLine}{sourceContent}{Environment.NewLine}```"
 
         Return markdownContent
     End Function

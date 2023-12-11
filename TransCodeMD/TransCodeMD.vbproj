@@ -4,8 +4,8 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>TransCodeMD</RootNamespace>
     <TargetFramework>net7.0</TargetFramework>
-    <AssemblyVersion>1.0.14.345</AssemblyVersion>
-    <FileVersion>1.0.14.345</FileVersion>
+    <AssemblyVersion>1.0.16.345</AssemblyVersion>
+    <FileVersion>1.0.16.345</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
