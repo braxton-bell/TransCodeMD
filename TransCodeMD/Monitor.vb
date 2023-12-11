@@ -1,23 +1,45 @@
 ﻿Imports System.IO
+Imports Microsoft.Extensions.Logging
+Imports Microsoft.Extensions.Options
+Imports Newtonsoft.Json.Linq
+Imports TransCodeMD.Config
 Imports TransCodeMD.Utilities
 
+Public Interface IMonitor
+    Function RunAsync() As Task(Of IOperationResult)
+End Interface
+
 Public Class Monitor
+    Implements IMonitor
 
     ' Directory to monitor - this should be replaced with your actual directory path
+    Private ReadOnly _options As IOptions(Of ApplicationConfig)
+    Private ReadOnly _propMgr As ILogPropertyMgr
+    Private ReadOnly _logger As ILogger(Of Monitor)
+
     Private _monitorDirectory As String = "C:\source\repos\TransCodeMD\demo"
 
-    Public Sub New()
+    Public Sub New(options As IOptions(Of ApplicationConfig), propMgr As ILogPropertyMgr, logger As ILogger(Of Monitor))
+        _options = options
+        _propMgr = propMgr
+        _logger = logger
     End Sub
 
-    Public Async Function RunAsync() As Task(Of IOperationResult)
-
+    Public Async Function RunAsync() As Task(Of IOperationResult) Implements IMonitor.RunAsync
         Dim result = OperationResult.Ok
 
         'Call Monitor()
 
-        Call SyncSourceToMarkdown("C:\source\repos\TransCodeMD\demo\script.vb")
+        Call SyncSourceToMarkdown("C:\source\repos\TransCodeMD\demo\playbook.yaml")
 
         'Call SyncMarkdownToSource("C:\source\repos\TransCodeMD\demo\script.vb.md")
+
+        'Call AddFilesToTransclude("C:\source\repos\TransCodeMD\demo")
+
+        'Dim files = GetFilesToTransclude("C:\source\repos\TransCodeMD\demo")
+        'For Each file In files
+        '    System.Console.WriteLine(file)
+        'Next
 
         Await Task.Delay(1000)
 
@@ -46,10 +68,14 @@ Public Class Monitor
             watcher.EnableRaisingEvents = True
 
             ' Wait for the user to quit the program.
-            Console.WriteLine("Press 'q' to quit the sample.")
-            While Char.ToLowerInvariant(Console.ReadKey().KeyChar) <> "q"c
+            'Console.WriteLine("Press 'q' to quit the sample.")
+            _logger.LogInformation("Press 'q' to quit the sample.")
+
+
+            While Char.ToLowerInvariant(System.Console.ReadKey().KeyChar) <> "q"c
                 System.Threading.Thread.Sleep(1000)
             End While
+
         End Using
     End Sub
 
@@ -59,19 +85,27 @@ Public Class Monitor
     Private Sub OnChanged(sender As Object, e As FileSystemEventArgs)
         If IsFileOfInterest(e.FullPath) Then
             ' Implement your sync logic here
-            Console.WriteLine($"File of interest changed: {e.FullPath} {e.ChangeType}")
+            System.Console.WriteLine($"File of interest changed: {e.FullPath} {e.ChangeType}")
         End If
     End Sub
 
     Private Sub OnRenamed(sender As Object, e As RenamedEventArgs)
         ' Specify what is done when a file is renamed.
-        Console.WriteLine($"File: {e.OldFullPath} renamed to {e.FullPath}")
+        _logger.LogInformation("{Method}: File: {OldFullPath} renamed to {FullPath}", NameOf(OnRenamed), e.OldFullPath, e.FullPath)
     End Sub
 
     Private Function IsFileOfInterest(filePath As String) As Boolean
-        Dim extensionsOfInterest As String() = {".py", ".cs", ".vb", ".ps1", ".md"}
+
+        Dim languages As Dictionary(Of String, String) = ReadLanguageMappings()
+        'Dim extensionsOfInterest As String() = {".py", ".cs", ".vb", ".ps1", ".md"}
+
+        ' Get Extensions from Language Mappings, 2nd column
+        Dim extensionsOfInterest As String() = languages.Values.ToArray()
+
         Dim fileExtension As String = Path.GetExtension(filePath)
+
         Return extensionsOfInterest.Contains(fileExtension.ToLower())
+
     End Function
 
 
@@ -83,9 +117,11 @@ Public Class Monitor
         If Not File.Exists(transcludeFilePath) Then
             ' Create an empty .transclude file
             File.WriteAllText(transcludeFilePath, String.Empty)
-            Console.WriteLine($"Created new .transclude file at: {transcludeFilePath}")
+            'Console.WriteLine($"Created new .transclude file at: {transcludeFilePath}")
+            _logger.LogInformation("{Method}: Created new .transclude file at: {transcludeFilePath}", NameOf(CreateTranscludeFile), transcludeFilePath)
         Else
-            Console.WriteLine($"A .transclude file already exists at: {transcludeFilePath}")
+            'Console.WriteLine($"A .transclude file already exists at: {transcludeFilePath}")
+            _logger.LogInformation("{Method}: A .transclude file already exists at: {transcludeFilePath}", NameOf(CreateTranscludeFile), transcludeFilePath)
         End If
     End Sub
 
@@ -150,44 +186,39 @@ Public Class Monitor
         Return markdownContent
     End Function
 
-    Private Function GetLangIdFromFileExt(sourceFilePath As String) As String
-        Dim langId As String
+    ' Read the configuration from appsettings.json
+    Private Function ReadLanguageMappings() As Dictionary(Of String, String)
 
-        Select Case Path.GetExtension(sourceFilePath).ToLower()
-            Case ".cs"
-                langId = "csharp"
-            Case ".vb"
-                langId = "vb"
-            Case ".py"
-                langId = "python"
-            Case ".ps1"
-                langId = "powershell"
-            Case Else
-                'Throw New Exception($"Unsupported file extension: {Path.GetExtension(sourceFilePath)}")
-                langId = ""
-        End Select
+        Dim mappings As Dictionary(Of String, String) = _options.Value.LanguageMappings
+
+        Return mappings
+    End Function
+
+    Private Function GetLangIdFromFileExt(sourceFilePath As String) As String
+        Dim mappings As Dictionary(Of String, String) = ReadLanguageMappings()
+        Dim fileExt As String = Path.GetExtension(sourceFilePath).ToLower()
+
+        ' Find the corresponding language identifier
+        Dim langId As String = mappings.FirstOrDefault(Function(m) m.Value.Equals(fileExt, StringComparison.OrdinalIgnoreCase)).Key
+        If String.IsNullOrEmpty(langId) Then
+            ' Handle unsupported file extensions if needed
+            Return String.Empty
+        End If
 
         Return langId
     End Function
 
     Private Function GetFileExtFromLangId(langId As String) As String
-        Dim fileExt As String
+        Dim mappings As Dictionary(Of String, String) = ReadLanguageMappings()
+        Dim normalizedLangId As String = langId.ToLower()
 
-        Select Case langId.ToLower()
-            Case "csharp"
-                fileExt = ".cs"
-            Case "vb"
-                fileExt = ".vb"
-            Case "python"
-                fileExt = ".py"
-            Case "powershell"
-                fileExt = ".ps1"
-            Case Else
-                'Throw New Exception($"Unsupported file extension: {Path.GetExtension(sourceFilePath)}")
-                fileExt = "txt"
-        End Select
-
-        Return fileExt
+        ' Find the corresponding file extension
+        If mappings.ContainsKey(normalizedLangId) Then
+            Return mappings(normalizedLangId)
+        Else
+            ' Handle unsupported language identifiers if needed
+            Return ".txt"
+        End If
     End Function
 
     Private Sub SyncMarkdownToSource(markdownFilePath As String)

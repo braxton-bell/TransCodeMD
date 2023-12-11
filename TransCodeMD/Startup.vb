@@ -91,6 +91,8 @@ Public Class Startup
                                            End Sub) _
                 .ConfigureServices(Sub(context, services)
 
+                                       ' Monitor
+                                       services.AddTransient(Of IMonitor, Monitor)
 
                                        ' Sandbox
                                        services.AddTransient(Of ISandbox, Sandbox.Sandbox)
@@ -176,7 +178,9 @@ Public Class Startup
         ' Await time-out
         'Await Task.Delay(1000)
 
-        Dim monitor = New Monitor
+        'Dim monitor = New Monitor
+
+        Dim monitor = _host.Services.GetService(Of IMonitor)
 
         Await monitor.RunAsync()
 
