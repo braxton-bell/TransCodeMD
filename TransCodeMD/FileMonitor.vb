@@ -38,9 +38,10 @@ Public Class FileMonitor
 
         Dim monitorDirectories = _utility.ReadMonitorDirectories()
 
-        Dim cts As New CancellationTokenSource()
+        ' Filter out subdirectories that are already covered
+        monitorDirectories = FilterRedundantDirectories(monitorDirectories)
 
-        'Dim monitorTask = Task.Run(Sub() Monitor(cts.Token))
+        Dim cts As New CancellationTokenSource()
 
         Dim monitorTasks As New List(Of Task)
 
@@ -53,9 +54,6 @@ Public Class FileMonitor
         Next
 
         Do Until monitorTasks.All(Function(t) t.IsCompleted)
-            'If System.Console.ReadKey().KeyChar = "q"c Then
-            '    cts.Cancel()
-            'End If
 
             If _ui.ExitApplication() Then
                 cts.Cancel()
@@ -64,21 +62,6 @@ Public Class FileMonitor
             ' Sleep to avoid pegging the CPU
             System.Threading.Thread.Sleep(500)
         Loop
-
-        'Do While Not monitorTask.IsCompleted
-        '    'If System.Console.ReadKey().KeyChar = "q"c Then
-        '    '    cts.Cancel()
-        '    'End If
-
-        '    If _ui.ExitApplication() Then
-        '        cts.Cancel()
-        '    End If
-
-        '    ' Sleep to avoid pegging the CPU
-        '    System.Threading.Thread.Sleep(500)
-        'Loop
-
-        'Await Task.Run(Sub() Monitor(cts.Token))
 
         Await Task.WhenAll(monitorTasks.ToArray)
 
@@ -106,20 +89,33 @@ Public Class FileMonitor
             ' Begin watching.
             watcher.EnableRaisingEvents = True
 
-            ' Wait for the user to quit the program.
-            '_logger.LogInformation("Press 'q' to quit the sample.")
-
-
-            'While Char.ToLowerInvariant(System.Console.ReadKey().KeyChar) <> "q"c
-            '    System.Threading.Thread.Sleep(1000)
-            'End While
-
             While Not cancelToken.IsCancellationRequested
                 System.Threading.Thread.Sleep(1000)
             End While
 
         End Using
     End Sub
+
+    Private Function FilterRedundantDirectories(directories As List(Of String)) As List(Of String)
+        ' This list will hold the filtered directories
+        Dim filteredDirectories As New List(Of String)
+
+        For Each dir As String In directories
+            ' Check if there's any directory in the list that is a parent of 'dir'
+            Dim isSubdirectory As Boolean = directories.Any(Function(otherDir)
+                                                                Return Not otherDir.Equals(dir, StringComparison.OrdinalIgnoreCase) AndAlso
+                                                                   dir.StartsWith(otherDir, StringComparison.OrdinalIgnoreCase)
+                                                            End Function)
+
+            ' If 'dir' is not a subdirectory of any other directory in the list, add it to the filtered list
+            If Not isSubdirectory Then
+                filteredDirectories.Add(dir)
+            End If
+        Next
+
+        Return filteredDirectories
+    End Function
+
 
     Private Sub OnChanged(sender As Object, e As FileSystemEventArgs)
 

@@ -80,7 +80,19 @@ Public Class Utility
             Return New List(Of String)()
         End If
 
-        Return File.ReadAllLines(configFilePath).ToList()
+        ' Only read lines not commented out with //
+        'Return File.ReadAllLines(configFilePath).ToList()
+
+        Dim lines As String() = File.ReadAllLines(configFilePath)
+        Dim nonCommentedLines As New List(Of String)
+        For Each line As String In lines
+            If Not line.StartsWith("//") Then
+                nonCommentedLines.Add(line)
+            End If
+        Next
+
+        Return nonCommentedLines
+
     End Function
 
 

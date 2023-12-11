@@ -4,8 +4,8 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>TransCodeMD</RootNamespace>
     <TargetFramework>net7.0</TargetFramework>
-    <AssemblyVersion>1.0.42.345</AssemblyVersion>
-    <FileVersion>1.0.42.345</FileVersion>
+    <AssemblyVersion>1.0.52.345</AssemblyVersion>
+    <FileVersion>1.0.52.345</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,6 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="GetOptNet" Version="4.0.8" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />

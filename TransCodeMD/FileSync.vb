@@ -54,7 +54,10 @@ Public Class FileSync
 
         Dim fileExtension As String = Path.GetExtension(filePath)
 
-        Return extensionsOfInterest.Contains(fileExtension.ToLower())
+        'Return extensionsOfInterest.Contains(fileExtension.ToLower())
+
+        ' Return true if the file extension is in the list of interest and it's not a .md file
+        Return extensionsOfInterest.Contains(fileExtension) AndAlso fileExtension.ToLower <> ".md"
 
     End Function
 
@@ -96,15 +99,6 @@ Public Class FileSync
     Public Sub SyncSourceToMarkdown(sourceFilePath As String) Implements IFileSync.SyncSourceToMarkdown
         ' Determine the path of the corresponding Markdown file
         Dim markdownFilePath As String = sourceFilePath & ".md"
-
-        'Dim langId As String
-
-        'langId = GetLangIdFromFileExt(sourceFilePath)
-
-        'Dim markdownContent As String = ConvertSourceToMarkdown(sourceFilePath, langId)
-
-        '' Write the updated content to the Markdown file
-        'File.WriteAllText(markdownFilePath, markdownContent)
 
         ' Check if Markdown file exists and whether it was updated by the app
         Dim markdownExists = File.Exists(markdownFilePath)
@@ -182,6 +176,20 @@ Public Class FileSync
 
     End Function
 
+    Private Function IsMarkedAsStale(oldMarkdownFilePath As String) As Boolean
+        ' Sample stale notice: >TransCodeMD Notice: Source Script Renamed. The current reference is stale.- [2023-12-11 12:55:20]
+        Dim staleNoticePattern As String = "^>TransCodeMD Notice: Source Script Renamed. The current reference is stale.- \[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\]$"
+        ' Check if the Markdown file exists
+        If Not File.Exists(oldMarkdownFilePath) Then
+            Return False ' The file does not exist, so it wasn't updated by the app
+        End If
+
+        Dim markdownContent As String = File.ReadAllText(oldMarkdownFilePath)
+
+        ' Check if the Markdown file contains the stale notice
+        Return Regex.IsMatch(markdownContent, staleNoticePattern, RegexOptions.Multiline)
+    End Function
+
     Public Sub SyncMarkdownToSource(markdownFilePath As String) Implements IFileSync.SyncMarkdownToSource
         ' Determine the path of the corresponding source file
         Dim sourceFilePath As String = markdownFilePath.Substring(0, markdownFilePath.Length - 3)
@@ -235,9 +243,19 @@ Public Class FileSync
         ' Determine the path of the corresponding old Markdown file
         Dim oldMarkdownFilePath As String = oldSourceFilePath & ".md"
 
+        ' Check if Markdown file exists and whether it was updated by the app
+        Dim markdownExists = File.Exists(oldMarkdownFilePath)
+        Dim markedAsStale = IsMarkedAsStale(oldMarkdownFilePath)
+
         ' Check if the Markdown file exists
-        If Not File.Exists(oldMarkdownFilePath) Then
-            _logger.LogWarning($"Markdown file for stale source not found: {oldMarkdownFilePath}")
+        If Not markdownExists Then
+            _logger.LogWarning("{Method}: Markdown file for stale source not found: {OldMarkdownFilePath}", NameOf(MarkFileAsStale), oldMarkdownFilePath)
+            Return
+        End If
+
+        ' Check if the Markdown file was updated by the app
+        If markedAsStale Then
+            ' File was already marked as stale, so no need to mark it again
             Return
         End If
 
@@ -247,10 +265,12 @@ Public Class FileSync
         Dim timestamp As String = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
 
         ' Define the stale notice
-        Dim staleNotice As String = ">TransCodeMD Notice: Source Script Renamed. The current reference is stale.- [{timestamp}]" & Environment.NewLine
+        Dim staleNotice As String = $">TransCodeMD Notice: Source Script Renamed. The current reference is stale.- [{timestamp}]" & Environment.NewLine
 
         ' Insert the stale notice at the beginning of the Markdown content
         markdownContent = staleNotice & markdownContent
+
+        'markdownContent = MarkMarkdownFile(markdownContent)
 
         ' Write the updated content back to the Markdown file
         File.WriteAllText(oldMarkdownFilePath, markdownContent)

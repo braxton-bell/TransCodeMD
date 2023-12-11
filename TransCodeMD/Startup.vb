@@ -1,4 +1,5 @@
 ﻿Imports System.IO
+Imports System.Threading
 Imports Microsoft.Extensions.Configuration
 Imports Microsoft.Extensions.DependencyInjection
 Imports Microsoft.Extensions.Hosting
@@ -97,6 +98,9 @@ Public Class Startup
                                        services.AddTransient(Of IUtility, Utility)
                                        services.AddTransient(Of IUserInteraction, UserInteraction)
 
+                                       ' RunTime Options
+                                       services.AddTransient(Of ICliManager, CliManager)
+
                                        ' Sandbox
                                        services.AddTransient(Of ISandbox, Sandbox.Sandbox)
 
@@ -176,18 +180,41 @@ Public Class Startup
 
     Private Async Function RunApp() As Task(Of IOperationResult)
 
-        _logger.LogInformation("{Method}: Running App", NameOf(RunApp))
+        Dim result As IOperationResult = OperationResult.Ok
 
-        ' Await time-out
-        'Await Task.Delay(1000)
+        Dim _cliManager As ICliManager = _host.Services.GetService(Of ICliManager)
 
-        'Dim monitor = New Monitor
+        If _cliManager.RunAsMonitor Then
 
-        Dim monitor = _host.Services.GetService(Of IMonitor)
+            '_logger.LogInformation("{Method}: Running App", NameOf(RunApp))
+            _logger.LogInformation("{Method}: TransCodeMD Monitor", NameOf(RunApp))
 
-        Await monitor.RunAsync()
+            Dim monitor = _host.Services.GetService(Of IMonitor)
 
-        Return OperationResult.Ok
+            result = Await monitor.RunAsync()
+
+        Else
+
+            '_logger.LogInformation("{Method}: Running App", NameOf(RunApp))
+            _logger.LogInformation("{Method}: TransCodeMD Utility", NameOf(RunApp))
+
+            Dim utility = _host.Services.GetService(Of IUtility)
+
+            Dim directoryPath As String = "C:\source\repos\TransCodeMD\demo"
+
+            'utility.CreateTranscludeFile(directoryPath)
+
+            'utility.AddFilesToTransclude(directoryPath)
+
+            Dim filesToTransclude As List(Of String) = utility.GetFilesToTransclude(directoryPath)
+
+            For Each file In filesToTransclude
+                System.Console.WriteLine(file)
+            Next
+
+        End If
+
+        Return result
 
     End Function
 

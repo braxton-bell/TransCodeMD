@@ -4,13 +4,20 @@ Module Program
 
     Sub Main(args As String())
 
-        'Console.WriteLine("Hello World!")
+        Dim cliMgr As New CliManager
 
-        Call AllowSingleInstance()
+        Dim startapp As New Startup
+
+
+        If cliMgr.RunAsMonitor Then
+            Call RunAsSingleServiceInstance(startapp)
+        Else
+            Call RunAsUtility(startapp)
+        End If
 
     End Sub
 
-    Private Sub AllowSingleInstance()
+    Private Sub RunAsSingleServiceInstance(entryPoint As Startup)
 
         Dim mutexId As String = "MyUniqueApplicationName"
         Dim createdNew As Boolean
@@ -18,11 +25,8 @@ Module Program
         Using mutex As New Mutex(False, mutexId, createdNew)
             If createdNew Then
                 ' The application is not already running
-                'Console.WriteLine("Application started.")
 
-                Dim startapp As New Startup
-
-                Dim resultTask = startapp.Start()
+                Dim resultTask = entryPoint.Start()
 
                 Dim result = resultTask.GetAwaiter.GetResult()
 
@@ -32,13 +36,26 @@ Module Program
                     Console.WriteLine("Application Failed to Start")
                 End If
 
-                'startapp.Start.GetAwaiter.GetResult()
-
             Else
                 ' The application is already running
                 Console.WriteLine("An instance of the application is already running.")
             End If
         End Using
+
+    End Sub
+
+    Private Sub RunAsUtility(entryPoint As Startup)
+
+        Dim resultTask = entryPoint.Start()
+
+        Dim result = resultTask.GetAwaiter.GetResult()
+
+        If result.Success Then
+            Console.WriteLine("Application returned Success")
+        Else
+            Console.WriteLine("Application Failed to Start")
+        End If
+
     End Sub
 
 End Module
