@@ -12,6 +12,8 @@ End Interface
 Public Class FileMonitor
     Implements IMonitor
 
+    Private ReadOnly _fileSync As IFileSync
+
     ' Directory to monitor - this should be replaced with your actual directory path
     Private ReadOnly _options As IOptions(Of ApplicationConfig)
     Private ReadOnly _propMgr As ILogPropertyMgr
@@ -19,7 +21,8 @@ Public Class FileMonitor
 
     Private _monitorDirectory As String = "C:\source\repos\TransCodeMD\demo"
 
-    Public Sub New(options As IOptions(Of ApplicationConfig), propMgr As ILogPropertyMgr, logger As ILogger(Of FileMonitor))
+    Public Sub New(fileSync As IFileSync, options As IOptions(Of ApplicationConfig), propMgr As ILogPropertyMgr, logger As ILogger(Of FileMonitor))
+        _fileSync = fileSync
         _options = options
         _propMgr = propMgr
         _logger = logger
@@ -30,7 +33,7 @@ Public Class FileMonitor
 
         'Call Monitor()
 
-        Call SyncSourceToMarkdown("C:\source\repos\TransCodeMD\demo\playbook.yaml")
+        Call _fileSync.SyncSourceToMarkdown("C:\source\repos\TransCodeMD\demo\playbook.yaml")
 
         'Call SyncMarkdownToSource("C:\source\repos\TransCodeMD\demo\script.vb.md")
 
@@ -83,7 +86,7 @@ Public Class FileMonitor
     ' Define the event handlers.
 
     Private Sub OnChanged(sender As Object, e As FileSystemEventArgs)
-        If IsFileOfInterest(e.FullPath) Then
+        If _fileSync.IsFileOfInterest(e.FullPath) Then
             ' Implement your sync logic here
             System.Console.WriteLine($"File of interest changed: {e.FullPath} {e.ChangeType}")
         End If

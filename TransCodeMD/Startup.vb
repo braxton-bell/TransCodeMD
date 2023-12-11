@@ -94,6 +94,7 @@ Public Class Startup
                                        ' App Services
                                        services.AddTransient(Of IMonitor, FileMonitor)
                                        services.AddTransient(Of IFileSync, FileSync)
+                                       services.AddTransient(Of IUtility, Utility)
 
                                        ' Sandbox
                                        services.AddTransient(Of ISandbox, Sandbox.Sandbox)

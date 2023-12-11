@@ -7,6 +7,7 @@ Imports TransCodeMD.Utilities
 Public Interface IUtility
     Sub AddFilesToTransclude(directoryPath As String)
     Function GetFilesToTransclude(directoryPath As String) As List(Of String)
+    Sub CreateTranscludeFile(directoryPath As String)
 End Interface
 
 Public Class Utility
@@ -25,7 +26,7 @@ Public Class Utility
     End Sub
 
     ' Create a .transclude file in the directory if it doesn't already exist
-    Private Sub CreateTranscludeFile(directoryPath As String)
+    Public Sub CreateTranscludeFile(directoryPath As String) Implements IUtility.CreateTranscludeFile
         Dim transcludeFilePath As String = Path.Combine(directoryPath, ".transclude")
 
         ' Check if the file already exists
