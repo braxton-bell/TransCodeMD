@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "TransCodeMD": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "AppConfig__DevOptions__Sandbox": "false"
+      }
+    }
+  }
+}

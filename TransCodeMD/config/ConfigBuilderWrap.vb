@@ -1,4 +1,4 @@
-﻿Imports System.IO 'Directory.GetCurrentDirectory
+﻿Imports System.IO
 Imports Microsoft.Extensions.Configuration
 
 Public Class ConfigBuilderWrap

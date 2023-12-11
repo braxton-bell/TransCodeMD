@@ -76,7 +76,7 @@ Public Class Startup
 
         'Dim result As OperationResult = OperationResult.Ok
 
-        Log.Logger.Debug("Bootstrap: Intializing host container (BatchId: {BatchId})", UniqueIdProvider.BatchId)
+        Log.Logger.Debug("Bootstrap: Intializing host container (InstanceId: {InstanceId})", UniqueIdProvider.GuId)
 
         Try
             hostContainer = Host.CreateDefaultBuilder() _
@@ -174,7 +174,11 @@ Public Class Startup
         _logger.LogInformation("{Method}: Running App", NameOf(RunApp))
 
         ' Await time-out
-        Await Task.Delay(1000)
+        'Await Task.Delay(1000)
+
+        Dim monitor = New Monitor
+
+        Await monitor.RunAsync()
 
         Return OperationResult.Ok
 
