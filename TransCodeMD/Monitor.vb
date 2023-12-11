@@ -133,24 +133,6 @@ Public Class Monitor
 
         langId = GetLangIdFromFileExt(sourceFilePath)
 
-        'Select Case Path.GetExtension(sourceFilePath).ToLower()
-        '    Case ".cs"
-        '        langId = "csharp"
-        '    Case ".vb"
-        '        langId = "vb"
-        '    Case ".py"
-        '        langId = "python"
-        '    Case ".ps1"
-        '        langId = "powershell"
-        '    Case Else
-        '        'Throw New Exception($"Unsupported file extension: {Path.GetExtension(sourceFilePath)}")
-        '        langId = ""
-        'End Select
-
-        ' Read the source file and wrap its contents in Markdown code block syntax
-        'Dim sourceContent As String = File.ReadAllText(sourceFilePath)
-        'Dim markdownContent As String = $"```{langId}{Environment.NewLine}{sourceContent}{Environment.NewLine}```"
-
         Dim markdownContent As String = ConvertSourceToMarkdown(sourceFilePath, langId)
 
         ' Write the updated content to the Markdown file
@@ -158,24 +140,6 @@ Public Class Monitor
     End Sub
 
     Private Function ConvertSourceToMarkdown(sourceContent As String, langId As String) As String
-        ' Determine the path of the corresponding Markdown file
-        'Dim markdownFilePath As String = sourceContent & ".md"
-
-        'Dim langId As String
-
-        'Select Case Path.GetExtension(sourceContent).ToLower()
-        '    Case ".cs"
-        '        langId = "csharp"
-        '    Case ".vb"
-        '        langId = "vb"
-        '    Case ".py"
-        '        langId = "python"
-        '    Case ".ps1"
-        '        langId = "powershell"
-        '    Case Else
-        '        'Throw New Exception($"Unsupported file extension: {Path.GetExtension(sourceFilePath)}")
-        '        langId = ""
-        'End Select
 
         ' Read the source file and wrap its contents in Markdown code block syntax
         sourceContent = File.ReadAllText(sourceContent)
@@ -237,23 +201,6 @@ Public Class Monitor
         ' Write the updated content to the source file
         File.WriteAllText(sourceFilePath, sourceContent)
     End Sub
-
-    ' This function extracts the source code from the Markdown file content
-    'Private Function ExtractSourceFromMarkdown(markdownContent As String) As String
-    '    ' Assuming the source code is wrapped in code block syntax (```),
-    '    ' we need to find the start and end of the code block
-    '    Dim codeBlockStart As String = "```"
-    '    Dim startIndex As Integer = markdownContent.IndexOf(codeBlockStart) + codeBlockStart.Length
-    '    Dim endIndex As Integer = markdownContent.LastIndexOf(codeBlockStart)
-
-    '    ' Extract the source code from within the code block
-    '    If startIndex < endIndex AndAlso startIndex > -1 AndAlso endIndex > -1 Then
-    '        Return markdownContent.Substring(startIndex, endIndex - startIndex).Trim()
-    '    Else
-    '        ' If no code block is found, return an empty string or handle as needed
-    '        Return String.Empty
-    '    End If
-    'End Function
 
     ' This function extracts the source code from the Markdown file content
     Private Function ExtractSourceFromMarkdown(markdownContent As String) As String
