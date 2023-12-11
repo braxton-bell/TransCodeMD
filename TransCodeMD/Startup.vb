@@ -91,8 +91,9 @@ Public Class Startup
                                            End Sub) _
                 .ConfigureServices(Sub(context, services)
 
-                                       ' Monitor
-                                       services.AddTransient(Of IMonitor, Monitor)
+                                       ' App Services
+                                       services.AddTransient(Of IMonitor, FileMonitor)
+                                       services.AddTransient(Of IFileSync, FileSync)
 
                                        ' Sandbox
                                        services.AddTransient(Of ISandbox, Sandbox.Sandbox)

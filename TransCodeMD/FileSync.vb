@@ -1,0 +1,153 @@
+﻿Imports System.IO
+Imports Microsoft.Extensions.Logging
+Imports Microsoft.Extensions.Options
+Imports TransCodeMD.Config
+Imports TransCodeMD.Utilities
+
+Public Interface IFileSync
+    Sub SyncMarkdownToSource(markdownFilePath As String)
+    Sub SyncSourceToMarkdown(sourceFilePath As String)
+    Function ConvertSourceToMarkdown(sourceContent As String, langId As String) As String
+    Function ExtractSourceFromMarkdown(markdownContent As String) As String
+    Function GetFileExtFromLangId(langId As String) As String
+    Function GetLangIdFromFileExt(sourceFilePath As String) As String
+    Function IsFileOfInterest(filePath As String) As Boolean
+    Function ReadLanguageMappings() As Dictionary(Of String, String)
+End Interface
+
+
+Public Class FileSync
+    Implements IFileSync
+
+    Private ReadOnly _options As IOptions(Of ApplicationConfig)
+    Private ReadOnly _propMgr As ILogPropertyMgr
+    Private ReadOnly _logger As ILogger(Of FileSync)
+
+    Public Sub New(options As IOptions(Of ApplicationConfig), propMgr As ILogPropertyMgr, logger As ILogger(Of FileSync))
+        _options = options
+        _propMgr = propMgr
+        _logger = logger
+    End Sub
+
+    Public Function IsFileOfInterest(filePath As String) As Boolean Implements IFileSync.IsFileOfInterest
+        Dim languages As Dictionary(Of String, String) = ReadLanguageMappings()
+        'Dim extensionsOfInterest As String() = {".py", ".cs", ".vb", ".ps1", ".md"}
+
+        ' Get Extensions from Language Mappings, 2nd column
+        Dim extensionsOfInterest As String() = languages.Values.ToArray()
+
+        Dim fileExtension As String = Path.GetExtension(filePath)
+
+        Return extensionsOfInterest.Contains(fileExtension.ToLower())
+
+    End Function
+
+    ' Read the configuration from appsettings.json
+    Public Function ReadLanguageMappings() As Dictionary(Of String, String) Implements IFileSync.ReadLanguageMappings
+        Dim mappings As Dictionary(Of String, String) = _options.Value.LanguageMappings
+
+        Return mappings
+    End Function
+
+    Public Function GetLangIdFromFileExt(sourceFilePath As String) As String Implements IFileSync.GetLangIdFromFileExt
+        Dim mappings As Dictionary(Of String, String) = ReadLanguageMappings()
+        Dim fileExt As String = Path.GetExtension(sourceFilePath).ToLower()
+
+        ' Find the corresponding language identifier
+        Dim langId As String = mappings.FirstOrDefault(Function(m) m.Value.Equals(fileExt, StringComparison.OrdinalIgnoreCase)).Key
+        If String.IsNullOrEmpty(langId) Then
+            ' Handle unsupported file extensions if needed
+            Return String.Empty
+        End If
+
+        Return langId
+    End Function
+
+    Public Function GetFileExtFromLangId(langId As String) As String Implements IFileSync.GetFileExtFromLangId
+        Dim mappings As Dictionary(Of String, String) = ReadLanguageMappings()
+        Dim normalizedLangId As String = langId.ToLower()
+
+        ' Find the corresponding file extension
+        If mappings.ContainsKey(normalizedLangId) Then
+            Return mappings(normalizedLangId)
+        Else
+            ' Handle unsupported language identifiers if needed
+            Return ".txt"
+        End If
+    End Function
+
+    ' Sync changes from source to Markdown
+    Public Sub SyncSourceToMarkdown(sourceFilePath As String) Implements IFileSync.SyncSourceToMarkdown
+        ' Determine the path of the corresponding Markdown file
+        Dim markdownFilePath As String = sourceFilePath & ".md"
+
+        Dim langId As String
+
+        langId = GetLangIdFromFileExt(sourceFilePath)
+
+        Dim markdownContent As String = ConvertSourceToMarkdown(sourceFilePath, langId)
+
+        ' Write the updated content to the Markdown file
+        File.WriteAllText(markdownFilePath, markdownContent)
+    End Sub
+
+    Public Function ConvertSourceToMarkdown(sourceContent As String, langId As String) As String Implements IFileSync.ConvertSourceToMarkdown
+
+        ' Read the source file and wrap its contents in Markdown code block syntax
+        sourceContent = File.ReadAllText(sourceContent)
+        Dim markdownContent As String
+
+        markdownContent = $"```{langId}{Environment.NewLine}{sourceContent}{Environment.NewLine}```"
+
+        Return markdownContent
+    End Function
+
+    Public Sub SyncMarkdownToSource(markdownFilePath As String) Implements IFileSync.SyncMarkdownToSource
+        ' Determine the path of the corresponding source file
+        Dim sourceFilePath As String = markdownFilePath.Substring(0, markdownFilePath.Length - 3)
+
+        ' Read the Markdown file
+        Dim markdownContent As String = File.ReadAllText(markdownFilePath)
+
+        ' Extract the source code from the Markdown content
+        Dim sourceContent As String = ExtractSourceFromMarkdown(markdownContent)
+
+        ' Write the updated content to the source file
+        File.WriteAllText(sourceFilePath, sourceContent)
+    End Sub
+
+    ' This function extracts the source code from the Markdown file content
+    Public Function ExtractSourceFromMarkdown(markdownContent As String) As String Implements IFileSync.ExtractSourceFromMarkdown
+        ' Assuming the source code is wrapped in code block syntax (```),
+        ' we need to find the start and end of the code block
+        Dim codeBlockStart As String = "```"
+        Dim startIndex As Integer = markdownContent.IndexOf(codeBlockStart)
+
+        If startIndex = -1 Then
+            ' Code block start not found, return empty string or handle as needed
+            Return String.Empty
+        End If
+
+        ' Find the end of the line where the code block starts
+        ' This is to skip the language identifier (like ```vb)
+        Dim endOfStartLineIndex As Integer = markdownContent.IndexOf(Environment.NewLine, startIndex)
+        If endOfStartLineIndex = -1 Then
+            ' New line not found after the code block start, handle as needed
+            Return String.Empty
+        End If
+
+        ' Adjust start index to be after the newline character
+        startIndex = endOfStartLineIndex + Environment.NewLine.Length
+
+        ' Find the end of the code block
+        Dim endIndex As Integer = markdownContent.LastIndexOf(codeBlockStart)
+        If endIndex = -1 OrElse endIndex <= startIndex Then
+            ' Invalid code block, handle as needed
+            Return String.Empty
+        End If
+
+        ' Extract the source code from within the code block
+        Return markdownContent.Substring(startIndex, endIndex - startIndex).Trim()
+    End Function
+
+End Class
