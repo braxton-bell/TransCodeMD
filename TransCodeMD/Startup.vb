@@ -95,6 +95,7 @@ Public Class Startup
                                        services.AddTransient(Of IMonitor, FileMonitor)
                                        services.AddTransient(Of IFileSync, FileSync)
                                        services.AddTransient(Of IUtility, Utility)
+                                       services.AddTransient(Of IUserInteraction, UserInteraction)
 
                                        ' Sandbox
                                        services.AddTransient(Of ISandbox, Sandbox.Sandbox)

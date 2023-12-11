@@ -1,4 +1,5 @@
 ﻿Imports System.IO
+Imports System.Text.RegularExpressions
 Imports Microsoft.Extensions.Logging
 Imports Microsoft.Extensions.Options
 Imports TransCodeMD.Config
@@ -13,21 +14,36 @@ Public Interface IFileSync
     Function GetLangIdFromFileExt(sourceFilePath As String) As String
     Function IsFileOfInterest(filePath As String) As Boolean
     Function ReadLanguageMappings() As Dictionary(Of String, String)
+    Sub MarkFileAsStale(oldSourceFilePath As String)
 End Interface
 
 
 Public Class FileSync
     Implements IFileSync
 
+    Private ReadOnly _userInteraction As IUserInteraction
     Private ReadOnly _options As IOptions(Of ApplicationConfig)
     Private ReadOnly _propMgr As ILogPropertyMgr
     Private ReadOnly _logger As ILogger(Of FileSync)
 
-    Public Sub New(options As IOptions(Of ApplicationConfig), propMgr As ILogPropertyMgr, logger As ILogger(Of FileSync))
+    Public Sub New(userInteraction As IUserInteraction, options As IOptions(Of ApplicationConfig), propMgr As ILogPropertyMgr, logger As ILogger(Of FileSync))
+        _userInteraction = userInteraction
         _options = options
         _propMgr = propMgr
         _logger = logger
     End Sub
+
+    Private Function IsSourceNewerThanMarkdown(sourceFilePath As String, markdownFilePath As String) As Boolean
+        Dim sourceFileInfo As New FileInfo(sourceFilePath)
+        Dim markdownFileInfo As New FileInfo(markdownFilePath)
+
+        ' Check if Markdown file exists
+        If Not markdownFileInfo.Exists Then
+            Return True ' Markdown doesn't exist, source is considered newer
+        End If
+
+        Return sourceFileInfo.LastWriteTimeUtc > markdownFileInfo.LastWriteTimeUtc
+    End Function
 
     Public Function IsFileOfInterest(filePath As String) As Boolean Implements IFileSync.IsFileOfInterest
         Dim languages As Dictionary(Of String, String) = ReadLanguageMappings()
@@ -81,14 +97,36 @@ Public Class FileSync
         ' Determine the path of the corresponding Markdown file
         Dim markdownFilePath As String = sourceFilePath & ".md"
 
-        Dim langId As String
+        'Dim langId As String
 
-        langId = GetLangIdFromFileExt(sourceFilePath)
+        'langId = GetLangIdFromFileExt(sourceFilePath)
 
-        Dim markdownContent As String = ConvertSourceToMarkdown(sourceFilePath, langId)
+        'Dim markdownContent As String = ConvertSourceToMarkdown(sourceFilePath, langId)
 
-        ' Write the updated content to the Markdown file
-        File.WriteAllText(markdownFilePath, markdownContent)
+        '' Write the updated content to the Markdown file
+        'File.WriteAllText(markdownFilePath, markdownContent)
+
+        ' Check if Markdown file exists and whether it was updated by the app
+        Dim markdownExists = File.Exists(markdownFilePath)
+        Dim isUpdatedByApp = IsMarkdownUpdatedByApp(markdownFilePath)
+
+        ' Check if the source file is newer or if user confirms sync when Markdown is newer
+        If Not markdownExists OrElse isUpdatedByApp OrElse IsSourceNewerThanMarkdown(sourceFilePath, markdownFilePath) OrElse
+           _userInteraction.ConfirmSyncForNewerMarkdown() Then
+
+            Dim langId As String = GetLangIdFromFileExt(sourceFilePath)
+            Dim markdownContent As String = ConvertSourceToMarkdown(sourceFilePath, langId)
+
+            ' Write the updated content to the Markdown file
+            File.WriteAllText(markdownFilePath, markdownContent)
+            'Console.WriteLine("Synchronization completed.")
+            _logger.LogInformation("{Method}: Synchronization completed.", NameOf(SyncSourceToMarkdown))
+
+        Else
+            'Console.WriteLine("Synchronization skipped.")
+            _logger.LogInformation("{Method}: Synchronization skipped.", NameOf(SyncSourceToMarkdown))
+        End If
+
     End Sub
 
     Public Function ConvertSourceToMarkdown(sourceContent As String, langId As String) As String Implements IFileSync.ConvertSourceToMarkdown
@@ -99,7 +137,49 @@ Public Class FileSync
 
         markdownContent = $"```{langId}{Environment.NewLine}{sourceContent}{Environment.NewLine}```"
 
+        ' Add a marker to the Markdown file to indicate that it was updated by TransCodeMD
+        markdownContent = MarkMarkdownFile(markdownContent)
+
         Return markdownContent
+    End Function
+
+    ' Add a marker to the Markdown file to indicate that it was updated by TransCodeMD
+    Private Function MarkMarkdownFile(markdownContent As String) As String
+        'Dim marker As String = Environment.NewLine & "<!-- Updated by TransCodeMD -->" & Environment.NewLine
+        'File.AppendAllText(markdownFilePath, marker)
+
+        'Dim timestamp As String = DateTime.Now.ToString("yyyyMMddHHmmss")
+        Dim timestamp As String = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+        Dim marker As String = Environment.NewLine & $"<!-- Updated by TransCodeMD [{timestamp}] -->" & Environment.NewLine
+
+        ' Append the marker to the Markdown content
+        Return markdownContent & marker
+
+    End Function
+
+    Private Function IsMarkdownUpdatedByApp(markdownFilePath As String) As Boolean
+        Dim marker As String = "<!-- Updated by TransCodeMD -->"
+
+        'If File.ReadAllText(markdownFilePath).Contains(marker) Then
+        '    Return True
+        'End If
+
+        'Return False
+
+        ' Check if the Markdown file exists
+        If Not File.Exists(markdownFilePath) Then
+            Return False ' The file does not exist, so it wasn't updated by the app
+        End If
+
+        Dim markdownContent As String = File.ReadAllText(markdownFilePath)
+        'Dim markerPattern As String = "<!-- Updated by TransCodeMD \[\d{14}\] -->"
+        Dim markerPattern As String = "<!-- Updated by TransCodeMD \[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\] -->"
+
+        ' Check if the Markdown file contains the marker
+        'Return File.ReadAllText(markdownFilePath).Contains(marker)
+
+        Return Regex.IsMatch(markdownContent, markerPattern)
+
     End Function
 
     Public Sub SyncMarkdownToSource(markdownFilePath As String) Implements IFileSync.SyncMarkdownToSource
@@ -149,5 +229,34 @@ Public Class FileSync
         ' Extract the source code from within the code block
         Return markdownContent.Substring(startIndex, endIndex - startIndex).Trim()
     End Function
+
+    ' This function marks a file as stale by adding a notice to the beginning of the Markdown content
+    Public Sub MarkFileAsStale(oldSourceFilePath As String) Implements IFileSync.MarkFileAsStale
+        ' Determine the path of the corresponding old Markdown file
+        Dim oldMarkdownFilePath As String = oldSourceFilePath & ".md"
+
+        ' Check if the Markdown file exists
+        If Not File.Exists(oldMarkdownFilePath) Then
+            _logger.LogWarning($"Markdown file for stale source not found: {oldMarkdownFilePath}")
+            Return
+        End If
+
+        ' Read the existing Markdown content
+        Dim markdownContent As String = File.ReadAllText(oldMarkdownFilePath)
+
+        Dim timestamp As String = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+
+        ' Define the stale notice
+        Dim staleNotice As String = ">TransCodeMD Notice: Source Script Renamed. The current reference is stale.- [{timestamp}]" & Environment.NewLine
+
+        ' Insert the stale notice at the beginning of the Markdown content
+        markdownContent = staleNotice & markdownContent
+
+        ' Write the updated content back to the Markdown file
+        File.WriteAllText(oldMarkdownFilePath, markdownContent)
+
+        _logger.LogInformation($"Marked file as stale: {oldMarkdownFilePath}")
+    End Sub
+
 
 End Class

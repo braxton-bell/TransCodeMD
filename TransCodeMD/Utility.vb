@@ -8,6 +8,7 @@ Public Interface IUtility
     Sub AddFilesToTransclude(directoryPath As String)
     Function GetFilesToTransclude(directoryPath As String) As List(Of String)
     Sub CreateTranscludeFile(directoryPath As String)
+    Function ReadMonitorDirectories() As List(Of String)
 End Interface
 
 Public Class Utility
@@ -71,5 +72,16 @@ Public Class Utility
         ' Write the updated list of files to the .transclude file
         File.WriteAllLines(transcludeFilePath, filesToTransclude)
     End Sub
+
+    Public Function ReadMonitorDirectories() As List(Of String) Implements IUtility.ReadMonitorDirectories
+        Dim configFilePath As String = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".tconfig")
+        If Not File.Exists(configFilePath) Then
+            _logger.LogError($"Config file not found at {configFilePath}")
+            Return New List(Of String)()
+        End If
+
+        Return File.ReadAllLines(configFilePath).ToList()
+    End Function
+
 
 End Class
