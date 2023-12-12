@@ -50,7 +50,7 @@ Public Class UtilityRuntimeMgr
 
         End If
 
-        If _cliMgr.MonitorSourceFile Then
+        If Not String.IsNullOrEmpty(_cliMgr.MonitorSourceFile) Then
 
             result = AddSourceFilesToMonitor(_cliMgr.MonitorSourceFile)
 
@@ -115,6 +115,7 @@ Public Class UtilityRuntimeMgr
                 directoryPath = sourceFilePath
             Else
                 ' Invalid path provided
+                _logger.LogError("{Method}: Invalid path: {sourceFilePath}", NameOf(AddSourceFilesToMonitor), sourceFilePath)
                 Return OperationResult.Fail($"Invalid path: {sourceFilePath}")
             End If
         Else
@@ -127,11 +128,26 @@ Public Class UtilityRuntimeMgr
             If Not String.IsNullOrEmpty(specificFile) Then
                 ' Add only the specific file
                 If _fileSync.IsFileOfInterest(specificFile) Then
-                    _utility.AddFilesToTransclude(directoryPath, sourceFilePath)
+
+                    ' Check if the user wants to add the file to the .transclude file
+                    If _ui.ConfirmAddSourceFilesToTransclude(directoryPath, specificFile) Then
+                        _utility.AddFilesToTransclude(directoryPath, directoryPath & "\" & specificFile)
+                        _logger.LogInformation("{Method}: {specificFile} has been added to the .transclude file in {directoryPath}.", NameOf(AddSourceFilesToMonitor), specificFile, directoryPath)
+                    Else
+                        _logger.LogInformation("{Method}: {specificFile} has NOT been added to the .transclude file in {directoryPath}.", NameOf(AddSourceFilesToMonitor), specificFile, directoryPath)
+                    End If
+
                 End If
             Else
-                ' Add all files of interest in the directory
-                _utility.AddFilesToTransclude(directoryPath)
+
+                ' Check if the user wants to add all files in the directory to the .transclude file
+                If _ui.ConfirmAddSourceFilesToTransclude(directoryPath) Then
+                    _utility.AddFilesToTransclude(directoryPath)
+                    _logger.LogInformation("{Method}: All files have been added to the .transclude file in {directoryPath}.", NameOf(AddSourceFilesToMonitor), directoryPath)
+                Else
+                    _logger.LogInformation("{Method}: No files have been added to the .transclude file in {directoryPath}.", NameOf(AddSourceFilesToMonitor), directoryPath)
+                End If
+
             End If
         Catch ex As Exception
             '_logger.LogError(ex, "Error in adding source files to monitor.")
