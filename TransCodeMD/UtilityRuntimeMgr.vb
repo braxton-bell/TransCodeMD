@@ -123,6 +123,9 @@ Public Class UtilityRuntimeMgr
             directoryPath = Directory.GetCurrentDirectory()
         End If
 
+        ' Add the directory to the config file if it is not already there
+        _utility.AddDirectoryToConfig(directoryPath)
+
         ' Now, add files to transclude based on the determined path
         Try
             If Not String.IsNullOrEmpty(specificFile) Then

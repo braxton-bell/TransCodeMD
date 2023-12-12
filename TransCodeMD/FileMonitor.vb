@@ -37,7 +37,10 @@ Public Class FileMonitor
         Dim monitorDirectories = _utility.ReadMonitorDirectories()
 
         ' Filter out subdirectories that are already covered
-        monitorDirectories = FilterRedundantDirectories(monitorDirectories)
+        monitorDirectories = _utility.FilterRedundantDirectories(monitorDirectories)
+
+        ' Filter out the application directory
+        monitorDirectories = _utility.FilterAppDir(monitorDirectories)
 
         Dim cts As New CancellationTokenSource()
 
@@ -66,6 +69,15 @@ Public Class FileMonitor
         Return result
 
     End Function
+
+    ' Filter out the application directory
+    'Private Function FilterAppDir(monitorDirectories As List(Of String)) As List(Of String)
+
+    '    Dim appDir As String = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)
+
+    '    Return monitorDirectories.Where(Function(dir) Not dir.Equals(appDir, StringComparison.OrdinalIgnoreCase)).ToList()
+
+    'End Function
 
     Private Sub Monitor(directory As String, cancelToken As CancellationToken)
         ' Directory to monitor - this should be replaced with your actual directory path
@@ -98,26 +110,25 @@ Public Class FileMonitor
         End Using
     End Sub
 
-    Private Function FilterRedundantDirectories(directories As List(Of String)) As List(Of String)
-        ' This list will hold the filtered directories
-        Dim filteredDirectories As New List(Of String)
+    'Private Function FilterRedundantDirectories(directories As List(Of String)) As List(Of String)
+    '    ' This list will hold the filtered directories
+    '    Dim filteredDirectories As New List(Of String)
 
-        For Each dir As String In directories
-            ' Check if there's any directory in the list that is a parent of 'dir'
-            Dim isSubdirectory As Boolean = directories.Any(Function(otherDir)
-                                                                Return Not otherDir.Equals(dir, StringComparison.OrdinalIgnoreCase) AndAlso
-                                                                   dir.StartsWith(otherDir, StringComparison.OrdinalIgnoreCase)
-                                                            End Function)
+    '    For Each dir As String In directories
+    '        ' Check if there's any directory in the list that is a parent of 'dir'
+    '        Dim isSubdirectory As Boolean = directories.Any(Function(otherDir)
+    '                                                            Return Not otherDir.Equals(dir, StringComparison.OrdinalIgnoreCase) AndAlso
+    '                                                               dir.StartsWith(otherDir, StringComparison.OrdinalIgnoreCase)
+    '                                                        End Function)
 
-            ' If 'dir' is not a subdirectory of any other directory in the list, add it to the filtered list
-            If Not isSubdirectory Then
-                filteredDirectories.Add(dir)
-            End If
-        Next
+    '        ' If 'dir' is not a subdirectory of any other directory in the list, add it to the filtered list
+    '        If Not isSubdirectory Then
+    '            filteredDirectories.Add(dir)
+    '        End If
+    '    Next
 
-        Return filteredDirectories
-    End Function
-
+    '    Return filteredDirectories
+    'End Function
 
     Private Sub OnChanged(sender As Object, e As FileSystemEventArgs)
 

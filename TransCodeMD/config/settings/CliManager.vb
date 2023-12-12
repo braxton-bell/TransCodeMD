@@ -5,6 +5,8 @@ Public Interface ICliManager
     Property MonitorRootDir As Boolean
     Property DirectoryPath As String
     Property MonitorSourceFile As String
+
+    Property ShowHelp As Boolean
 End Interface
 
 Public Class CliManager
@@ -18,6 +20,15 @@ Public Class CliManager
 
         Try
             Me.Parse(myArgs)
+
+            ' Check if help is requested
+            If Me.ShowHelp Then
+                Me.PrintUsage()
+                Environment.Exit(0)
+            End If
+
+        Catch ex As UnknownAttributeException
+            System.Console.WriteLine($"{NameOf(CliManager)}: An unknown attribute was specified: {ex.Message}")
         Catch ex As Exception
             System.Console.WriteLine($"{NameOf(CliManager)}: Error parsing command line arguments: {myArgs}")
             Throw
@@ -30,7 +41,7 @@ Public Class CliManager
     <ShortArgument("m")>
     Public Property RunAsMonitor As Boolean Implements ICliManager.RunAsMonitor ' Flag to indicate that the application should run as a monitor
 
-    <Argument("includedir", HelpText:="Add directory to config")>
+    <Argument("monitordir", HelpText:="Add directory to config")>
     <ShortArgument("d")>
     Public Property MonitorRootDir As Boolean Implements ICliManager.MonitorRootDir ' Flag to indicate that the root directory should be monitored (add to .tconfig)
 
@@ -42,5 +53,8 @@ Public Class CliManager
     <ShortArgument("s")>
     Public Property MonitorSourceFile As String Implements ICliManager.MonitorSourceFile ' The `source.file` to monitor (add local .transclude)
 
+    <Argument("help", HelpText:="Show help information")>
+    <ShortArgument("h")>
+    Public Property ShowHelp As Boolean Implements ICliManager.ShowHelp ' Flag to show help information
 
 End Class

@@ -10,6 +10,9 @@ Public Interface IUtility
     Sub CreateTranscludeFile(directoryPath As String)
     Function ReadMonitorDirectories() As List(Of String)
     Sub AddDirectoryToConfig(Optional directoryPath As String = Nothing)
+    Function FilterAppDir(monitorDirectories As List(Of String)) As List(Of String)
+    Function FilterRedundantDirectories(directories As List(Of String)) As List(Of String)
+    Sub ManualSync(Optional directory As String = Nothing)
 End Interface
 
 Public Class Utility
@@ -118,14 +121,16 @@ Public Class Utility
         End If
     End Sub
 
-    Public Sub AddFilesToTransclude(directoryPath As String, Optional specificFilePath As String = "") Implements IUtility.AddFilesToTransclude
+    Public Sub AddFilesToTransclude(directoryPath As String, Optional filename As String = "") Implements IUtility.AddFilesToTransclude
         Dim transcludeFilePath As String = Path.Combine(directoryPath, ".transclude")
         Dim filesToTransclude As List(Of String) = GetFilesToTransclude(directoryPath)
 
-        If Not String.IsNullOrEmpty(specificFilePath) Then
+        Dim existsFile As Boolean = File.Exists(transcludeFilePath)
+
+        If Not String.IsNullOrEmpty(filename) AndAlso existsFile Then
             ' Add only the specific file if it's of interest
-            If _fileSync.IsFileOfInterest(specificFilePath) AndAlso Not filesToTransclude.Contains(specificFilePath) Then
-                filesToTransclude.Add(specificFilePath)
+            If _fileSync.IsFileOfInterest(filename) AndAlso Not filesToTransclude.Contains(filename) Then
+                filesToTransclude.Add(filename)
             End If
         Else
             ' Add all files of interest in the directory
@@ -139,22 +144,6 @@ Public Class Utility
 
         ' Write the updated list of files to the .transclude file
         File.WriteAllLines(transcludeFilePath, filesToTransclude)
-    End Sub
-
-    Public Sub ManualSync()
-        Dim configFilePath As String = GetConfigFilePath() 'Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".tconfig")
-        If Not File.Exists(configFilePath) Then
-            _logger.LogError("Config file not found.")
-            Return
-        End If
-
-        Dim directories As List(Of String) = File.ReadAllLines(configFilePath).ToList()
-        For Each directory In directories
-            Dim transcludeFiles As List(Of String) = GetFilesToTransclude(directory)
-            For Each file In transcludeFiles
-                _fileSync.SyncSourceToMarkdown(file)
-            Next
-        Next
     End Sub
 
     Public Function GetConfigFilePath() As String
@@ -177,5 +166,67 @@ Public Class Utility
 
         Return filePath
     End Function
+
+    Public Sub ManualSync(Optional syncDir As String = Nothing) Implements IUtility.ManualSync
+
+        Dim monitorDirectories As New List(Of String)
+
+        ' Check if a specific directory is provided and use that, otherwise use all directories in the config file
+        If Not String.IsNullOrEmpty(syncDir) Then
+            'monitorDirectories = monitorDirectories.Where(Function(dir) dir.Equals(syncDir, StringComparison.OrdinalIgnoreCase)).ToList()
+            monitorDirectories.Add(syncDir)
+        Else
+            monitorDirectories = ReadMonitorDirectories()
+        End If
+
+        ' Filter out subdirectories that are already covered
+        monitorDirectories = FilterRedundantDirectories(monitorDirectories)
+
+        ' Filter out the application directory
+        monitorDirectories = FilterAppDir(monitorDirectories)
+
+        For Each monDir In monitorDirectories
+            If Not String.IsNullOrEmpty(monDir) AndAlso Directory.Exists(monDir) Then
+
+                Dim transcludeFiles As List(Of String) = GetFilesToTransclude(monDir)
+                For Each file In transcludeFiles
+                    _fileSync.SyncSourceToMarkdown(file)
+                Next
+
+            End If
+
+        Next
+    End Sub
+
+    ' Filter out the application directory
+    Public Function FilterAppDir(monitorDirectories As List(Of String)) As List(Of String) Implements IUtility.FilterAppDir
+
+        Dim appDir As String = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)
+
+        Return monitorDirectories.Where(Function(dir) Not dir.Equals(appDir, StringComparison.OrdinalIgnoreCase)).ToList()
+
+    End Function
+
+    ' Filter out subdirectories that are already covered
+    Public Function FilterRedundantDirectories(directories As List(Of String)) As List(Of String) Implements IUtility.FilterRedundantDirectories
+        ' This list will hold the filtered directories
+        Dim filteredDirectories As New List(Of String)
+
+        For Each dir As String In directories
+            ' Check if there's any directory in the list that is a parent of 'dir'
+            Dim isSubdirectory As Boolean = directories.Any(Function(otherDir)
+                                                                Return Not otherDir.Equals(dir, StringComparison.OrdinalIgnoreCase) AndAlso
+                                                                   dir.StartsWith(otherDir, StringComparison.OrdinalIgnoreCase)
+                                                            End Function)
+
+            ' If 'dir' is not a subdirectory of any other directory in the list, add it to the filtered list
+            If Not isSubdirectory Then
+                filteredDirectories.Add(dir)
+            End If
+        Next
+
+        Return filteredDirectories
+    End Function
+
 
 End Class
