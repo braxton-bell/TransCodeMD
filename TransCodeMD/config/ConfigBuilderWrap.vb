@@ -21,8 +21,10 @@ Public Class ConfigBuilderWrap
 
         Dim configBuilder As New ConfigurationBuilder
 
+        Dim runtimePath As String = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly.Location)
+
         With configBuilder
-            .SetBasePath($"{Directory.GetCurrentDirectory}/config/settings")
+            .SetBasePath($"{runtimePath}/config/settings")
             .AddJsonFile("appsettings.json", [optional]:=True, reloadOnChange:=True)
             .AddJsonFile(
                 $"appsettings.{If(Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT"), "Production")}.json",

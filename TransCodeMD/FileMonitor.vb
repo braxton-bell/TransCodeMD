@@ -22,8 +22,6 @@ Public Class FileMonitor
     Private ReadOnly _propMgr As ILogPropertyMgr
     Private ReadOnly _logger As ILogger(Of FileMonitor)
 
-    Private _monitorDirectory As String = "C:\source\repos\TransCodeMD\demo"
-
     Public Sub New(ui As IUserInteraction, utility As IUtility, fileSync As IFileSync, options As IOptions(Of ApplicationConfig), propMgr As ILogPropertyMgr, logger As ILogger(Of FileMonitor))
         _ui = ui
         _utility = utility
@@ -47,7 +45,7 @@ Public Class FileMonitor
 
         For Each directory In monitorDirectories
             Try
-                monitorTasks.Add(Task.Run(Sub() Monitor(cts.Token)))
+                monitorTasks.Add(Task.Run(Sub() Monitor(directory, cts.Token)))
             Catch ex As Exception
                 _logger.LogError(ex, "{Method}: Error adding task for directory: {Directory}", NameOf(RunAsync), directory)
             End Try
@@ -69,11 +67,15 @@ Public Class FileMonitor
 
     End Function
 
-    Private Sub Monitor(cancelToken As CancellationToken)
+    Private Sub Monitor(directory As String, cancelToken As CancellationToken)
         ' Directory to monitor - this should be replaced with your actual directory path
 
 
-        Using watcher As New FileSystemWatcher(_monitorDirectory)
+        Using watcher As New FileSystemWatcher(directory)
+
+            ' Watch for changes in LastWrite times, and the renaming of files or directories.
+            watcher.IncludeSubdirectories = True
+
             ' Watch for changes in LastWrite times, and the renaming of files or directories.
             watcher.NotifyFilter = NotifyFilters.LastWrite Or NotifyFilters.FileName Or NotifyFilters.DirectoryName
 

@@ -7,6 +7,8 @@ Imports TransCodeMD.Utilities
 Public Interface IUserInteraction
     Function ConfirmSyncForNewerMarkdown() As Boolean
     Function ExitApplication() As Boolean
+    Function ConfirmAddDirectoryToConfig(directoryPath As String) As Boolean
+    Function ConfirmAddSourceFilesToTransclude(directoryPath As String, Optional sourceFilePaths As String = Nothing) As Boolean
 End Interface
 
 Public Class UserInteraction
@@ -34,13 +36,29 @@ Public Class UserInteraction
 
         Dim key = System.Console.ReadKey()
 
-        'If System.Console.ReadKey().KeyChar = "q"c Then
-        '    Return True
-        'End If
-
-        'Return True
-
         Return key.KeyChar = "q"c OrElse key.KeyChar = "Q"c
+
+    End Function
+
+    Public Function ConfirmAddDirectoryToConfig(directoryPath As String) As Boolean Implements IUserInteraction.ConfirmAddDirectoryToConfig
+        System.Console.WriteLine($"Do you want to add the directory '{directoryPath}' to the config? [Y/N]")
+        Dim key = System.Console.ReadKey()
+        Return key.KeyChar = "Y"c OrElse key.KeyChar = "y"c
+    End Function
+
+    Public Function ConfirmAddSourceFilesToTransclude(directoryPath As String, Optional sourceFilePath As String = Nothing) As Boolean Implements IUserInteraction.ConfirmAddSourceFilesToTransclude
+        Dim key
+
+        If sourceFilePath Is Nothing Then
+            System.Console.WriteLine($"Do you want to add all source files to the .transclude file in '{directoryPath}'? [Y/N]")
+            key = System.Console.ReadKey()
+
+        Else
+            System.Console.WriteLine($"Do you want to add the source file '{sourceFilePath}' to the .transclude file in '{directoryPath}'? [Y/N]")
+            key = System.Console.ReadKey()
+        End If
+
+        Return key.KeyChar = "Y"c OrElse key.KeyChar = "y"c
 
     End Function
 

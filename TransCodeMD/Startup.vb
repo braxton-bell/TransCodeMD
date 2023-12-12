@@ -22,7 +22,11 @@ Public Class Startup
 
     Private ReadOnly _propMgr As ILogPropertyMgr
 
+    Private ReadOnly _runtimePath As String
+
     Public Sub New()
+
+        _runtimePath = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly.Location)
 
         ' Build the configuration, it should fail early if there are any issues.
         _configBuilder = New ConfigBuilderWrap
@@ -52,18 +56,21 @@ Public Class Startup
         ' Uncomment to add a property to the logger.
         '_propMgr.Add("SomeKey", "SomeValue")
 
+        ' Get the runtime path for the application.
+
 
     End Sub
 
     Private Sub StartLogger()
 
         Dim LogConfig As New LoggerConfiguration
+
         With LogConfig
             .ReadFrom.Configuration(_configBuilder.Configuration)
             '.Enrich.FromLogContext()
             '.WriteTo.Console
-            '.WriteTo.File($"{Directory.GetCurrentDirectory}/Logs/log.txt")
-            '.WriteTo.SQLite($"{Directory.GetCurrentDirectory}/Logs/log.db")
+            '.WriteTo.File($"{_runtimePath}/Logs/log.txt")
+            '.WriteTo.SQLite($"{_runtimePath}/Logs/log.db")
         End With
 
         ' Start the logger for the entire application. From this point on, the logger can be used in any class.
@@ -82,7 +89,7 @@ Public Class Startup
         Try
             hostContainer = Host.CreateDefaultBuilder() _
                 .ConfigureAppConfiguration(Sub(context, config)
-                                               config.SetBasePath($"{Directory.GetCurrentDirectory}/config/settings")
+                                               config.SetBasePath($"{_runtimePath}/config/settings")
                                                config.AddJsonFile("appsettings.json", [optional]:=True, reloadOnChange:=True)
                                                config.AddJsonFile(
                                                     $"appsettings.{If(Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT"), "Production")}.json",
@@ -97,6 +104,7 @@ Public Class Startup
                                        services.AddTransient(Of IFileSync, FileSync)
                                        services.AddTransient(Of IUtility, Utility)
                                        services.AddTransient(Of IUserInteraction, UserInteraction)
+                                       services.AddTransient(Of IUtilityRuntimeMgr, UtilityRuntimeMgr)
 
                                        ' RunTime Options
                                        services.AddTransient(Of ICliManager, CliManager)
@@ -195,22 +203,28 @@ Public Class Startup
 
         Else
 
+
+
             '_logger.LogInformation("{Method}: Running App", NameOf(RunApp))
-            _logger.LogInformation("{Method}: TransCodeMD Utility", NameOf(RunApp))
+            _logger.LogInformation("{Method}: TransCodeMD Utilities", NameOf(RunApp))
 
-            Dim utility = _host.Services.GetService(Of IUtility)
+            'Dim utility = _host.Services.GetService(Of IUtility)
 
-            Dim directoryPath As String = "C:\source\repos\TransCodeMD\demo"
+            'Dim directoryPath As String = "C:\source\repos\TransCodeMD\demo"
 
             'utility.CreateTranscludeFile(directoryPath)
 
             'utility.AddFilesToTransclude(directoryPath)
 
-            Dim filesToTransclude As List(Of String) = utility.GetFilesToTransclude(directoryPath)
+            'Dim filesToTransclude As List(Of String) = utility.GetFilesToTransclude(directoryPath)
 
-            For Each file In filesToTransclude
-                System.Console.WriteLine(file)
-            Next
+            'For Each file In filesToTransclude
+            '    System.Console.WriteLine(file)
+            'Next
+
+            Dim utilityMgr = _host.Services.GetService(Of IUtilityRuntimeMgr)
+
+            result = utilityMgr.Run()
 
         End If
 
