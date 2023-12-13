@@ -1,3 +1,2 @@
-' Test to see if monitor is running. Testing
-
+' Test to see if monitor is running.
 Console.Write("hello,")
