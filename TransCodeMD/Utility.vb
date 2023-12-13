@@ -152,9 +152,9 @@ Public Class Utility
         Dim exitsInTransclude As Boolean = False
 
         ' Verify that the source file exists
-        If Not File.Exists(filePath) Then
-            Throw New FileNotFoundException($"File does not exist: {filePath}")
-        End If
+        'If Not File.Exists(filePath) Then
+        '    Throw New FileNotFoundException($"File does not exist: {filePath}")
+        'End If
 
         Dim existingFilesInTransclude As List(Of String)
 
@@ -620,6 +620,10 @@ Public Class Utility
             Return
         End If
 
+        ' Print horizontal line
+        Dim line As String = New String("-"c, 80)
+        System.Console.WriteLine(line)
+
         For Each f In fileList
             '_logger.LogInformation("{Method}: {File}", NameOf(ListAllRefInLocalTranscodeFile), f)
             System.Console.WriteLine(f)
@@ -655,6 +659,10 @@ Public Class Utility
             _logger.LogInformation("{Method}: No files found in `.tconfig` file in directory: {Directory}", NameOf(ListAllRefInConfigFile), configFilePath)
             Return
         End If
+
+        ' Print horizontal line
+        Dim line As String = New String("-"c, 80)
+        System.Console.WriteLine(line)
 
         For Each f In fileList
             '_logger.LogInformation("{Method}: {File}", NameOf(ListAllRefInConfigFile), file)

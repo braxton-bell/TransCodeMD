@@ -2,7 +2,7 @@
   "profiles": {
     "TransCodeMD": {
       "commandName": "Project",
-      "commandLineArgs": "-y -z C:\\source\\repos\\ScrapeEngine\\DevOps\\Scripts",
+      "commandLineArgs": "-l",
       "environmentVariables": {
         "AppConfig__DevOptions__Sandbox": "false"
       }
