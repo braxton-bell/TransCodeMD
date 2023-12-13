@@ -51,9 +51,9 @@ Module Program
         Dim result = resultTask.GetAwaiter.GetResult()
 
         If result.Success Then
-            Console.WriteLine("Application returned Success")
+            Console.WriteLine(0) ' Success
         Else
-            Console.WriteLine("Application Failed to Start")
+            Console.WriteLine("An error occurred while running the application.")
         End If
 
     End Sub

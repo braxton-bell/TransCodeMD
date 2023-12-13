@@ -4,8 +4,8 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>TransCodeMD</RootNamespace>
     <TargetFramework>net7.0</TargetFramework>
-    <AssemblyVersion>1.0.73.346</AssemblyVersion>
-    <FileVersion>1.0.73.346</FileVersion>
+    <AssemblyVersion>1.0.104.347</AssemblyVersion>
+    <FileVersion>1.0.104.347</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,7 +24,7 @@
 
   <ItemGroup>
     <None Update=".tconfig">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="config\settings\appsettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>

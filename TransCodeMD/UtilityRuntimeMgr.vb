@@ -38,128 +38,175 @@ Public Class UtilityRuntimeMgr
     Public Function Run() As IOperationResult Implements IUtilityRuntimeMgr.Run
         Dim result = OperationResult.Ok
 
-        If _cliMgr.MonitorRootDir AndAlso String.IsNullOrEmpty(_cliMgr.DirectoryPath) Then
+        ' ------------ Soure File Scenarios ------------
+        ' 1. The user has specified a specific file to monitor (add only that file)
+        ' 2. The user has specified a directory to monitor (add all files in the specified directory)
+        ' 3. The user has not specified a file or directory to monitor (add all files in the current directory)
 
-            result = AddThisDirectoryToConfig()
+        If Not String.IsNullOrEmpty(_cliMgr.AddSourceFile) Then
+            'If _cliMgr.AddSourceFile AndAlso Not IsNothing(_cliMgr.AddSourceFile) Then
+
+            result = AddSourceFileToTransclude(_cliMgr.AddSourceFile)
+
+        End If
+
+
+        'If _cliMgr.AddSourceFilesFromDirectory And IsNothing(_cliMgr.SourceFilePath) Then
+        If _cliMgr.AddSourceFilesFromDirectory And String.IsNullOrEmpty(_cliMgr.SourceFilePath) Then
+
+            result = AddSourceFilesFromCurrentDirectoryToTransclude()
 
         End If
 
-        If _cliMgr.MonitorRootDir AndAlso Not String.IsNullOrEmpty(_cliMgr.DirectoryPath) Then
+        If _cliMgr.AddSourceFilesFromDirectory And Not String.IsNullOrEmpty(_cliMgr.SourceFilePath) Then
 
-            result = AddThatDirectoryToConfig(_cliMgr.DirectoryPath)
+            result = AddSourceFilesFromDirectoryToTransclude(_cliMgr.SourceFilePath)
+
+        End If
+        ' ------------ End Soure File Scenarios ------------
+
+
+        ' ------------ Root Path Scenarios ------------
+        If _cliMgr.AddRootPath AndAlso String.IsNullOrEmpty(_cliMgr.RootPath) Then
+
+            result = AddCurrentDirectoryToConfig()
 
         End If
 
-        If Not String.IsNullOrEmpty(_cliMgr.MonitorSourceFile) Then
+        If _cliMgr.AddRootPath AndAlso Not String.IsNullOrEmpty(_cliMgr.RootPath) Then
 
-            result = AddSourceFilesToMonitor(_cliMgr.MonitorSourceFile)
+            result = AddNamedDirectoryToConfig(_cliMgr.RootPath)
 
         End If
+        ' ------------ End Root Path Scenarios ------------
+
+
+        ' ------------ Sync Scenarios ------------
+        If _cliMgr.SyncFiles And String.IsNullOrEmpty(_cliMgr.SyncPath) Then
+
+            result = SyncFilesFromConfig()
+
+        End If
+
+        If _cliMgr.SyncFiles And Not String.IsNullOrEmpty(_cliMgr.SyncPath) Then
+
+            result = SyncFilesInNamedDirectory(_cliMgr.SyncPath)
+
+        End If
+        ' ------------ End Sync Scenarios ------------
 
         Return result
     End Function
 
-    Private Function AddThisDirectoryToConfig() As IOperationResult
+    Private Function SyncFilesInNamedDirectory(syncPath As String) As OperationResult
+        Throw New NotImplementedException()
+    End Function
+
+    Private Function SyncFilesFromConfig() As OperationResult
+        Throw New NotImplementedException()
+    End Function
+
+    ''' <summary>
+    ''' This method adds all files in a named directory to the .transclude file.
+    ''' </summary>
+    ''' <param name="sourceFilePath">The path to the directory containing the files to be added to the .transclude file.</param>
+    ''' <returns></returns>
+    Private Function AddSourceFilesFromDirectoryToTransclude(sourceFilePath As String) As OperationResult
+        Dim result = OperationResult.Ok
+
+        Try
+            _utility.AddAllFilesInDirectoryToTransclude(sourceFilePath)
+        Catch ex As Exception
+            _logger.LogWarning(ex, "{Method}: Error adding source files to transclude: {sourceFilePath}", NameOf(AddSourceFilesFromDirectoryToTransclude), sourceFilePath)
+            result = OperationResult.Fail(ex.Message)
+        End Try
+
+
+        Return result
+    End Function
+
+    ''' <summary>
+    ''' This method adds all files in the current directory to the .transclude file.
+    ''' </summary>
+    ''' <returns></returns>
+    Private Function AddSourceFilesFromCurrentDirectoryToTransclude() As OperationResult
         Dim result = OperationResult.Ok
 
         Dim currentDirectory = Directory.GetCurrentDirectory()
 
-        If _ui.ConfirmAddDirectoryToConfig(currentDirectory) Then
-            _utility.AddDirectoryToConfig()
-            _logger.LogInformation("{Method}: {CurrentDirectory} has been added to the config.", NameOf(AddThisDirectoryToConfig), currentDirectory)
-        Else
-            _logger.LogInformation("{Method}: {CurrentDirectory} has NOT been added to the config.", NameOf(AddThisDirectoryToConfig), currentDirectory)
-        End If
-
-        Return result
-    End Function
-
-    Private Function AddThatDirectoryToConfig(dirPath As String) As IOperationResult
-        Dim result = OperationResult.Ok
-
-        If _ui.ConfirmAddDirectoryToConfig(dirPath) Then
-            _utility.AddDirectoryToConfig(dirPath)
-            _logger.LogInformation("{Method}: {dirPath} has been added to the config.", NameOf(AddThatDirectoryToConfig), dirPath)
-        Else
-            _logger.LogInformation("{Method}: {dirPath} has NOT been added to the config.", NameOf(AddThatDirectoryToConfig), dirPath)
-        End If
-
-        Return result
-    End Function
-
-    'Private Function AddSourceFilesToMonitor(sourceFilePath As String) As IOperationResult
-    '    Dim result = OperationResult.Ok
-
-    '    ' Scenarios:
-    '    ' 1. The user has specified a specific file to monitor (add only that file)
-    '    ' 2. The user has specified a directory to monitor (add all files in the specified directory)
-    '    ' 3. The user has not specified a file or directory to monitor (add all files in the current directory)
-
-    '    Return result
-    'End Function
-
-    Private Function AddSourceFilesToMonitor(Optional sourceFilePath As String = "") As IOperationResult
-        Dim result = OperationResult.Ok
-
-        Dim directoryPath As String
-        Dim specificFile As String = ""
-
-        ' Check if a specific file or directory is provided
-        If Not String.IsNullOrEmpty(sourceFilePath) Then
-            If File.Exists(sourceFilePath) Then
-                ' Scenario 1: User specified a specific file
-                directoryPath = Path.GetDirectoryName(sourceFilePath)
-                specificFile = Path.GetFileName(sourceFilePath)
-            ElseIf Directory.Exists(sourceFilePath) Then
-                ' Scenario 2: User specified a directory
-                directoryPath = sourceFilePath
-            Else
-                ' Invalid path provided
-                _logger.LogError("{Method}: Invalid path: {sourceFilePath}", NameOf(AddSourceFilesToMonitor), sourceFilePath)
-                Return OperationResult.Fail($"Invalid path: {sourceFilePath}")
-            End If
-        Else
-            ' Scenario 3: No specific file or directory provided; use current directory
-            directoryPath = Directory.GetCurrentDirectory()
-        End If
-
-        ' Add the directory to the config file if it is not already there
-        _utility.AddDirectoryToConfig(directoryPath)
-
-        ' Now, add files to transclude based on the determined path
         Try
-            If Not String.IsNullOrEmpty(specificFile) Then
-                ' Add only the specific file
-                If _fileSync.IsFileOfInterest(specificFile) Then
-
-                    ' Check if the user wants to add the file to the .transclude file
-                    If _ui.ConfirmAddSourceFilesToTransclude(directoryPath, specificFile) Then
-                        _utility.AddFilesToTransclude(directoryPath, directoryPath & "\" & specificFile)
-                        _logger.LogInformation("{Method}: {specificFile} has been added to the .transclude file in {directoryPath}.", NameOf(AddSourceFilesToMonitor), specificFile, directoryPath)
-                    Else
-                        _logger.LogInformation("{Method}: {specificFile} has NOT been added to the .transclude file in {directoryPath}.", NameOf(AddSourceFilesToMonitor), specificFile, directoryPath)
-                    End If
-
-                End If
-            Else
-
-                ' Check if the user wants to add all files in the directory to the .transclude file
-                If _ui.ConfirmAddSourceFilesToTransclude(directoryPath) Then
-                    _utility.AddFilesToTransclude(directoryPath)
-                    _logger.LogInformation("{Method}: All files have been added to the .transclude file in {directoryPath}.", NameOf(AddSourceFilesToMonitor), directoryPath)
-                Else
-                    _logger.LogInformation("{Method}: No files have been added to the .transclude file in {directoryPath}.", NameOf(AddSourceFilesToMonitor), directoryPath)
-                End If
-
-            End If
+            _utility.AddAllFilesInDirectoryToTransclude(currentDirectory)
         Catch ex As Exception
-            '_logger.LogError(ex, "Error in adding source files to monitor.")
-            _logger.LogError(ex, "{Method}: Error in adding source files to monitor.", NameOf(AddSourceFilesToMonitor))
+            _logger.LogWarning(ex, "{Method}: Error adding source files to transclude: {currentDirectory}", NameOf(AddSourceFilesFromCurrentDirectoryToTransclude), currentDirectory)
             result = OperationResult.Fail(ex.Message)
         End Try
 
         Return result
     End Function
 
+    ''' <summary>
+    ''' This method adds a specific file to the .transclude file.
+    ''' </summary>
+    ''' <param name="addSourceFile">The file to be added to the .transclude file.</param>
+    ''' <returns></returns>
+    Private Function AddSourceFileToTransclude(addSourceFile As String) As OperationResult
+        Dim result = OperationResult.Ok
 
+        Try
+            _utility.AddSpecificFileToTransclude(addSourceFile)
+        Catch ex As Exception
+            _logger.LogWarning(ex, "{Method}: Error adding source file to transclude: {addSourceFile}", NameOf(AddSourceFileToTransclude), addSourceFile)
+            result = OperationResult.Fail(ex.Message)
+        End Try
+
+        Return result
+
+    End Function
+
+    ''' <summary>
+    ''' This method adds the current directory to the config.
+    ''' </summary>
+    ''' <returns></returns>
+    Private Function AddCurrentDirectoryToConfig() As IOperationResult
+        Dim result = OperationResult.Ok
+
+        Try
+            Dim currentDirectory = Directory.GetCurrentDirectory()
+
+            If _ui.ConfirmAddDirectoryToConfig(currentDirectory) Then
+                _utility.WriteTConfig()
+                _logger.LogInformation("{Method}: {CurrentDirectory} has been added to the config.", NameOf(AddCurrentDirectoryToConfig), currentDirectory)
+            Else
+                _logger.LogInformation("{Method}: {CurrentDirectory} has NOT been added to the config.", NameOf(AddCurrentDirectoryToConfig), currentDirectory)
+            End If
+        Catch ex As Exception
+            _logger.LogWarning(ex, "{Method}: Error adding current directory to config.", NameOf(AddCurrentDirectoryToConfig))
+            result = OperationResult.Fail(ex.Message)
+        End Try
+
+        Return result
+    End Function
+
+    ''' <summary>
+    ''' This method adds a named directory to the config.
+    ''' </summary>
+    ''' <param name="dirPath">Path to the directory to be added to the config.</param>
+    ''' <returns></returns>
+    Private Function AddNamedDirectoryToConfig(dirPath As String) As IOperationResult
+        Dim result = OperationResult.Ok
+
+        Try
+            If _ui.ConfirmAddDirectoryToConfig(dirPath) Then
+                _utility.WriteTConfig(dirPath)
+                _logger.LogInformation("{Method}: {dirPath} has been added to the config.", NameOf(AddNamedDirectoryToConfig), dirPath)
+            Else
+                _logger.LogInformation("{Method}: {dirPath} has NOT been added to the config.", NameOf(AddNamedDirectoryToConfig), dirPath)
+            End If
+        Catch ex As Exception
+            _logger.LogWarning(ex, "{Method}: Error adding directory to config: {dirPath}", NameOf(AddNamedDirectoryToConfig), dirPath)
+            result = OperationResult.Fail(ex.Message)
+        End Try
+
+        Return result
+    End Function
 End Class

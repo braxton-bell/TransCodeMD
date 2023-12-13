@@ -194,37 +194,29 @@ Public Class Startup
 
         If _cliManager.RunAsMonitor Then
 
-            '_logger.LogInformation("{Method}: Running App", NameOf(RunApp))
             _logger.LogInformation("{Method}: TransCodeMD Monitor", NameOf(RunApp))
 
-            Dim monitor = _host.Services.GetService(Of IMonitor)
+            Try
+                Dim monitor = _host.Services.GetService(Of IMonitor)
 
-            result = Await monitor.RunAsync()
+                result = Await monitor.RunAsync()
+            Catch ex As Exception
+                _logger.LogError(ex, "{Method}: Error running monitor", NameOf(RunApp))
+                result = OperationResult.Fail(ex.Message)
+            End Try
 
         Else
 
-
-
-            '_logger.LogInformation("{Method}: Running App", NameOf(RunApp))
             _logger.LogInformation("{Method}: TransCodeMD Utilities", NameOf(RunApp))
 
-            'Dim utility = _host.Services.GetService(Of IUtility)
+            Try
+                Dim utilityMgr = _host.Services.GetService(Of IUtilityRuntimeMgr)
 
-            'Dim directoryPath As String = "C:\source\repos\TransCodeMD\demo"
-
-            'utility.CreateTranscludeFile(directoryPath)
-
-            'utility.AddFilesToTransclude(directoryPath)
-
-            'Dim filesToTransclude As List(Of String) = utility.GetFilesToTransclude(directoryPath)
-
-            'For Each file In filesToTransclude
-            '    System.Console.WriteLine(file)
-            'Next
-
-            Dim utilityMgr = _host.Services.GetService(Of IUtilityRuntimeMgr)
-
-            result = utilityMgr.Run()
+                result = utilityMgr.Run()
+            Catch ex As Exception
+                _logger.LogError(ex, "{Method}: Error running utility", NameOf(RunApp))
+                result = OperationResult.Fail(ex.Message)
+            End Try
 
         End If
 

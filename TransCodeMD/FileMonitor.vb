@@ -2,7 +2,6 @@
 Imports System.Threading
 Imports Microsoft.Extensions.Logging
 Imports Microsoft.Extensions.Options
-Imports Newtonsoft.Json.Linq
 Imports TransCodeMD.Config
 Imports TransCodeMD.Utilities
 
@@ -22,6 +21,11 @@ Public Class FileMonitor
     Private ReadOnly _propMgr As ILogPropertyMgr
     Private ReadOnly _logger As ILogger(Of FileMonitor)
 
+    ' ----------------- Debounce -----------------
+    Private _lastReadTimes As New Dictionary(Of String, DateTime)
+    Private _debounceTime As TimeSpan = TimeSpan.FromMilliseconds(200) ' 200 milliseconds
+    ' --------------- End Debounce ---------------
+
     Public Sub New(ui As IUserInteraction, utility As IUtility, fileSync As IFileSync, options As IOptions(Of ApplicationConfig), propMgr As ILogPropertyMgr, logger As ILogger(Of FileMonitor))
         _ui = ui
         _utility = utility
@@ -34,13 +38,19 @@ Public Class FileMonitor
     Public Async Function RunAsync() As Task(Of IOperationResult) Implements IMonitor.RunAsync
         Dim result = OperationResult.Ok
 
-        Dim monitorDirectories = _utility.ReadMonitorDirectories()
+        Dim monitorDirectories = _utility.ReadTConfig()
 
         ' Filter out subdirectories that are already covered
-        monitorDirectories = _utility.FilterRedundantDirectories(monitorDirectories)
+        monitorDirectories = _utility.FilterRedundantDirectoriesFromList(monitorDirectories)
 
         ' Filter out the application directory
-        monitorDirectories = _utility.FilterAppDir(monitorDirectories)
+        monitorDirectories = _utility.FilterInstallDirFromList(monitorDirectories)
+
+        ' Catch empty list
+        If monitorDirectories.Count = 0 Then
+            _logger.LogWarning("{Method}: No root paths found in the .tconfig file.", NameOf(RunAsync))
+            Return OperationResult.Fail
+        End If
 
         Dim cts As New CancellationTokenSource()
 
@@ -110,44 +120,79 @@ Public Class FileMonitor
         End Using
     End Sub
 
-    'Private Function FilterRedundantDirectories(directories As List(Of String)) As List(Of String)
-    '    ' This list will hold the filtered directories
-    '    Dim filteredDirectories As New List(Of String)
-
-    '    For Each dir As String In directories
-    '        ' Check if there's any directory in the list that is a parent of 'dir'
-    '        Dim isSubdirectory As Boolean = directories.Any(Function(otherDir)
-    '                                                            Return Not otherDir.Equals(dir, StringComparison.OrdinalIgnoreCase) AndAlso
-    '                                                               dir.StartsWith(otherDir, StringComparison.OrdinalIgnoreCase)
-    '                                                        End Function)
-
-    '        ' If 'dir' is not a subdirectory of any other directory in the list, add it to the filtered list
-    '        If Not isSubdirectory Then
-    '            filteredDirectories.Add(dir)
-    '        End If
-    '    Next
-
-    '    Return filteredDirectories
-    'End Function
-
     Private Sub OnChanged(sender As Object, e As FileSystemEventArgs)
 
-        If _fileSync.IsFileOfInterest(e.FullPath) Then
-            ' Implement your sync logic here
-            'System.Console.WriteLine($"File of interest changed: {e.FullPath} {e.ChangeType}")
+        ' ----------------- Debounce -----------------
+
+        Dim lastReadTime As DateTime
+        Dim currentTime As DateTime = DateTime.Now
+
+        SyncLock _lastReadTimes
+            If _lastReadTimes.TryGetValue(e.FullPath, lastReadTime) Then
+                If currentTime - lastReadTime < _debounceTime Then
+                    ' This event is within the debounce time, ignore it.
+                    Return
+                End If
+            End If
+            ' Update the last read time.
+            _lastReadTimes(e.FullPath) = currentTime
+        End SyncLock
+        ' --------------- End debounce -----------------
+
+        Dim isFileOfInterest As Boolean = _fileSync.IsFileOfInterest(e.FullPath)
+        Dim isFileInAppDir As Boolean '= _utility.IsInstallDir(Path.GetDirectoryName(e.FullPath))
+        Dim isFileInTransclude As Boolean '= _utility.ExistsFileInTransclude(e.FullPath)
+
+        ' Check if the file is of interest first to avoid proccessing ephemeral files/directories
+        ' that may be deleted before the method completes
+        If isFileOfInterest Then
+            Try
+                isFileInAppDir = _utility.IsInstallDir(Path.GetDirectoryName(e.FullPath))
+                isFileInTransclude = _utility.ExistsFileInTransclude(e.FullPath)
+            Catch ex As Exception
+                _logger.LogWarning(ex, "{Method}: Error checking if file is in application directory or .transclude file: {FullPath}", NameOf(OnChanged), e.FullPath)
+                Return
+            End Try
+
+        End If
+
+        ' Check if the file is of interest, is in the .transclude file, and is not in the application directory
+        If isFileOfInterest AndAlso isFileInTransclude AndAlso Not isFileInAppDir Then
+
+            ' Sync the source file to the Markdown file
             _fileSync.SyncSourceToMarkdown(e.FullPath)
+
             _logger.LogInformation("{Method}: File of interest changed: {FullPath} {ChangeType}", NameOf(OnChanged), e.FullPath, e.ChangeType)
         End If
     End Sub
 
     Private Sub OnRenamed(sender As Object, e As RenamedEventArgs)
 
-        If _fileSync.IsFileOfInterest(e.FullPath) Then
+        Dim isFileOfInterest As Boolean = _fileSync.IsFileOfInterest(e.FullPath)
+        Dim isFileInAppDir As Boolean '= _utility.IsInstallDir(Path.GetDirectoryName(e.FullPath))
+        Dim isOldFileInTransclude As Boolean '= _utility.ExistsFileInTransclude(e.OldFullPath)
+
+        ' Check if the file is of interest first to avoid proccessing ephemeral files/directories
+        ' that may be deleted before the method completes
+        If isFileOfInterest Then
+            Try
+                isFileInAppDir = _utility.IsInstallDir(Path.GetDirectoryName(e.FullPath))
+                isOldFileInTransclude = _utility.ExistsFileInTransclude(e.OldFullPath)
+            Catch ex As Exception
+                _logger.LogWarning(ex, "{Method}: Error checking if file is in application directory or .transclude file: {FullPath}", NameOf(OnRenamed), e.FullPath)
+                Return
+            End Try
+        End If
+
+
+        ' Check if the file is of interest, is in the .transclude file, and is not in the application directory
+        If isFileOfInterest AndAlso isOldFileInTransclude AndAlso Not isFileInAppDir Then
+
             ' Implement your sync logic here
             _logger.LogInformation("{Method}: File: {OldFullPath} renamed to {FullPath}", NameOf(OnRenamed), e.OldFullPath, e.FullPath)
 
             ' Add the new file to the .transclude file
-            _utility.AddFilesToTransclude(Path.GetDirectoryName(e.FullPath))
+            _utility.AddSpecificFileToTransclude(e.FullPath)
 
             ' Sync the source file to the Markdown file
             _fileSync.SyncSourceToMarkdown(e.FullPath)
