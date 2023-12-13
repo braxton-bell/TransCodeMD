@@ -9,6 +9,7 @@ Public Interface IUserInteraction
     Function ExitApplication() As Boolean
     Function ConfirmAddDirectoryToConfig(directoryPath As String) As Boolean
     Function ConfirmAddSourceFilesToTransclude(directoryPath As String, Optional sourceFilePaths As String = Nothing) As Boolean
+    Function ConfirmAdhocSync() As Boolean
 End Interface
 
 Public Class UserInteraction
@@ -57,6 +58,17 @@ Public Class UserInteraction
             System.Console.WriteLine($"Do you want to add the source file '{sourceFilePath}' to the .transclude file in '{directoryPath}'? [Y/N]")
             key = System.Console.ReadKey()
         End If
+
+        Return key.KeyChar = "Y"c OrElse key.KeyChar = "y"c
+
+    End Function
+
+    Public Function ConfirmAdhocSync() As Boolean Implements IUserInteraction.ConfirmAdhocSync
+
+        Dim key
+
+        System.Console.WriteLine($"You are about to perform an adhoc sync. Do you want to continue? [Y/N]")
+        key = System.Console.ReadKey()
 
         Return key.KeyChar = "Y"c OrElse key.KeyChar = "y"c
 

@@ -95,15 +95,95 @@ Public Class UtilityRuntimeMgr
         End If
         ' ------------ End Sync Scenarios ------------
 
+
+        ' ------------ List Ref Paths Scenarios ------------
+        If _cliMgr.ListRootPaths Then
+
+            result = ListRootPaths()
+
+        End If
+
+        If _cliMgr.ListSourceFiles Then
+
+            result = ListSourceFiles()
+
+        End If
+        ' ------------ End List Ref Paths Scenarios ------------
+
+
+
+
+
+        Return result
+    End Function
+
+    Private Function ListSourceFiles() As OperationResult
+        Dim result = OperationResult.Ok
+
+        Try
+
+            _utility.ListAllRefInLocalTranscodeFile()
+
+        Catch ex As Exception
+            _logger.LogWarning(ex, "{Method}: Error listing source files.", NameOf(ListSourceFiles))
+            result = OperationResult.Fail(ex.Message)
+        End Try
+
+        Return result
+    End Function
+
+    Private Function ListRootPaths() As OperationResult
+        Dim result = OperationResult.Ok
+
+        Try
+
+            _utility.ListAllRefInConfigFile()
+
+        Catch ex As Exception
+            _logger.LogWarning(ex, "{Method}: Error listing root paths.", NameOf(ListRootPaths))
+            result = OperationResult.Fail(ex.Message)
+        End Try
+
         Return result
     End Function
 
     Private Function SyncFilesInNamedDirectory(syncPath As String) As OperationResult
-        Throw New NotImplementedException()
+        Dim result = OperationResult.Ok
+
+        Try
+
+            ' fq path
+            syncPath = Path.GetFullPath(syncPath)
+
+            If _ui.ConfirmAdhocSync() Then
+                _utility.AdhocTranscode(syncPath)
+                _logger.LogInformation("{Method}: Files in {syncPath} have been synced.", NameOf(SyncFilesInNamedDirectory), syncPath)
+            Else
+                _logger.LogInformation("{Method}: Files in {syncPath} have NOT been synced.", NameOf(SyncFilesInNamedDirectory), syncPath)
+            End If
+        Catch ex As Exception
+            _logger.LogWarning(ex, "{Method}: Error syncing files in named directory: {syncPath}", NameOf(SyncFilesInNamedDirectory), syncPath)
+            result = OperationResult.Fail(ex.Message)
+        End Try
+        Return result
     End Function
 
     Private Function SyncFilesFromConfig() As OperationResult
-        Throw New NotImplementedException()
+        Dim result = OperationResult.Ok
+
+        Try
+            If _ui.ConfirmAdhocSync() Then
+                _utility.AdhocTranscode()
+                _logger.LogInformation("{Method}: Files have been synced.", NameOf(SyncFilesFromConfig))
+            Else
+                _logger.LogInformation("{Method}: Files have NOT been synced.", NameOf(SyncFilesFromConfig))
+            End If
+
+        Catch ex As Exception
+            _logger.LogWarning(ex, "{Method}: Error syncing files from config.", NameOf(SyncFilesFromConfig))
+            result = OperationResult.Fail(ex.Message)
+        End Try
+        Return result
     End Function
 
     ''' <summary>
@@ -115,7 +195,14 @@ Public Class UtilityRuntimeMgr
         Dim result = OperationResult.Ok
 
         Try
+
+            ' fq path
+            sourceFilePath = Path.GetFullPath(sourceFilePath)
+
             _utility.AddAllFilesInDirectoryToTransclude(sourceFilePath)
+
+            _logger.LogInformation("{Method}: All files in {sourceFilePath} have been added to the .transclude file.", NameOf(AddSourceFilesFromDirectoryToTransclude), sourceFilePath)
+
         Catch ex As Exception
             _logger.LogWarning(ex, "{Method}: Error adding source files to transclude: {sourceFilePath}", NameOf(AddSourceFilesFromDirectoryToTransclude), sourceFilePath)
             result = OperationResult.Fail(ex.Message)
@@ -136,6 +223,9 @@ Public Class UtilityRuntimeMgr
 
         Try
             _utility.AddAllFilesInDirectoryToTransclude(currentDirectory)
+
+            _logger.LogInformation("{Method}: All files in {currentDirectory} have been added to the .transclude file.", NameOf(AddSourceFilesFromCurrentDirectoryToTransclude), currentDirectory)
+
         Catch ex As Exception
             _logger.LogWarning(ex, "{Method}: Error adding source files to transclude: {currentDirectory}", NameOf(AddSourceFilesFromCurrentDirectoryToTransclude), currentDirectory)
             result = OperationResult.Fail(ex.Message)
@@ -153,7 +243,14 @@ Public Class UtilityRuntimeMgr
         Dim result = OperationResult.Ok
 
         Try
+
+            ' fq path
+            addSourceFile = Path.GetFullPath(addSourceFile)
+
             _utility.AddSpecificFileToTransclude(addSourceFile)
+
+            _logger.LogInformation("{Method}: {addSourceFile} has been added to the .transclude file.", NameOf(AddSourceFileToTransclude), addSourceFile)
+
         Catch ex As Exception
             _logger.LogWarning(ex, "{Method}: Error adding source file to transclude: {addSourceFile}", NameOf(AddSourceFileToTransclude), addSourceFile)
             result = OperationResult.Fail(ex.Message)
@@ -196,6 +293,10 @@ Public Class UtilityRuntimeMgr
         Dim result = OperationResult.Ok
 
         Try
+
+            ' fq path
+            dirPath = Path.GetFullPath(dirPath)
+
             If _ui.ConfirmAddDirectoryToConfig(dirPath) Then
                 _utility.WriteTConfig(dirPath)
                 _logger.LogInformation("{Method}: {dirPath} has been added to the config.", NameOf(AddNamedDirectoryToConfig), dirPath)

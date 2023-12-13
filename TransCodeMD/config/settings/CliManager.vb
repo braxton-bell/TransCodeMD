@@ -10,6 +10,8 @@ Public Interface ICliManager
     Property SourceFilePath As String
     Property SyncFiles As Boolean
     Property SyncPath As String
+    Property ListRootPaths As Boolean
+    Property ListSourceFiles As Boolean
 End Interface
 
 Public Class CliManager
@@ -52,7 +54,7 @@ Public Class CliManager
     <ShortArgument("d")>
     Public Property AddRootPath As Boolean Implements ICliManager.AddRootPath ' Flag to indicate that the root directory should be monitored (add to .tconfig)
 
-    <Argument("dirpath", HelpText:="Specifies the directory to add as a root path in  `.tconfig`. Used with `-d`.")>
+    <Argument("rootpath", HelpText:="Specifies the directory to add as a root path in  `.tconfig`. Used with `-d`.")>
     <ShortArgument("p")>
     Public Property RootPath As String Implements ICliManager.RootPath ' The path to the directory to be monitored
 
@@ -75,6 +77,14 @@ Public Class CliManager
     <Argument("syncpath", HelpText:="Specifies directory to sync. Used with `-y`.")>
     <ShortArgument("z")>
     Public Property SyncPath As String Implements ICliManager.SyncPath ' The path to the directory to be synced manually.
+
+    <Argument("listrootpaths", HelpText:="List all root paths in `.tconfig`.")>
+    <ShortArgument("l")>
+    Public Property ListRootPaths As Boolean Implements ICliManager.ListRootPaths ' Switch to list all root paths in the .tconfig file.
+
+    <Argument("listsourcefiles", HelpText:="List all source files in `.transclude`.")>
+    <ShortArgument("t")>
+    Public Property ListSourceFiles As Boolean Implements ICliManager.ListSourceFiles ' Switch to list all source files in the local .transclude file.
 
     <Argument("help", HelpText:="Show help information")>
     <ShortArgument("h")>

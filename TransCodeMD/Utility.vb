@@ -1,4 +1,5 @@
 ﻿Imports System.IO
+Imports Microsoft.AspNetCore.Mvc.TagHelpers
 Imports Microsoft.Extensions.Logging
 Imports Microsoft.Extensions.Options
 Imports TransCodeMD.Config
@@ -12,7 +13,7 @@ Public Interface IUtility
     Sub WriteTConfig(Optional directoryPath As String = Nothing)
     Function FilterInstallDirFromList(monitorDirectories As List(Of String)) As List(Of String)
     Function FilterRedundantDirectoriesFromList(directories As List(Of String)) As List(Of String)
-    Sub ManualSync(Optional directory As String = Nothing)
+    Sub AdhocTranscode(Optional directory As String = Nothing)
     Sub AddSpecificFileToTransclude(filePath As String)
     Sub AddAllFilesInDirectoryToTransclude(directoryPath As String)
     'Function FilterInstallDir(directoryPath As String) As Boolean
@@ -20,6 +21,10 @@ Public Interface IUtility
     Function ExistsFileInTransclude(dirPath As String) As Boolean
     Function GetTranscludeFilePath(sourceFilePath As String) As String
     Sub WriteTranscludeFile(sourceFilePath As String)
+    Sub ListAllRefInLocalTranscodeFile()
+    Sub ListAllRefInConfigFile()
+    Function ExistsTranscludeFileAtPath(filePath As String) As Boolean
+    Function GetProperDirectoryPath(targetPath As String) As String
     'Function ExistsTranscludeFileAtPath(filePath As String) As Boolean
 End Interface
 
@@ -81,7 +86,7 @@ Public Class Utility
     Public Function ReadTranscludeFile(targetPath As String) As List(Of String) Implements IUtility.ReadTranscludeFile
 
         ' Verify that the directory exists
-        If Not Directory.Exists(Path.GetDirectoryName(targetPath)) Then
+        If Not Directory.Exists(GetProperDirectoryPath(targetPath)) Then
             Throw New DirectoryNotFoundException($"Directory does not exist: {targetPath}")
         End If
 
@@ -116,7 +121,7 @@ Public Class Utility
 
         ' Verify that the source file exists
         If File.Exists(sourceFilePath) Then
-            directoryPath = Path.GetDirectoryName(sourceFilePath)
+            directoryPath = GetProperDirectoryPath(sourceFilePath)
         Else
             _logger.LogError("{Method}: Source file does not exist: {SourceFilePath}", NameOf(WriteTranscludeFile), sourceFilePath)
             Return
@@ -155,7 +160,7 @@ Public Class Utility
 
         Try
             ' Read all lines from the .transclude file
-            existingFilesInTransclude = ReadTranscludeFile(Path.GetDirectoryName(filePath))
+            existingFilesInTransclude = ReadTranscludeFile(GetProperDirectoryPath(filePath))
 
         Catch ex As FileNotFoundException
             ' If the .transclude file doesn't exist, return false
@@ -186,7 +191,7 @@ Public Class Utility
     ''' <returns></returns>
     Public Function GetTranscludeFilePath(sourcePath As String) As String Implements IUtility.GetTranscludeFilePath
 
-        sourcePath = Path.GetDirectoryName(sourcePath)
+        sourcePath = GetProperDirectoryPath(sourcePath)
 
         Dim transcludeFilePath As String = String.Empty
 
@@ -254,8 +259,6 @@ Public Class Utility
     ' Add the directory to the .tconfig file if it's not already in it
     Public Sub WriteTConfig(Optional directoryPath As String = Nothing) Implements IUtility.WriteTConfig
 
-
-
         ' Check if a specific directoryPath is provided and use that, otherwise use the current directory
         If String.IsNullOrEmpty(directoryPath) Then
             directoryPath = Directory.GetCurrentDirectory()
@@ -300,13 +303,13 @@ Public Class Utility
 
         ' Verify that the source file exists
         If Not String.IsNullOrEmpty(filePath) AndAlso File.Exists(filePath) Then
-            directoryPath = Path.GetDirectoryName(filePath)
+            directoryPath = GetProperDirectoryPath(filePath)
         Else
             Throw New FileNotFoundException($"File path is null or empty or file does not exist: {filePath}")
         End If
 
         ' Add the source file to the .transclude file
-        If _fileSync.IsFileOfInterest(filePath) AndAlso Not IsInstallDir(Path.GetDirectoryName(filePath)) Then
+        If _fileSync.IsFileOfInterest(filePath) AndAlso Not IsInstallDir(GetProperDirectoryPath(filePath)) Then
             WriteTranscludeFile(filePath)
         End If
     End Sub
@@ -327,7 +330,7 @@ Public Class Utility
 
         ' Add all files that aren't already in the .transclude file and are "of interest"
         For Each filePath As String In filesInDirectory
-            If _fileSync.IsFileOfInterest(filePath) AndAlso Not IsInstallDir(Path.GetDirectoryName(filePath)) Then
+            If _fileSync.IsFileOfInterest(filePath) AndAlso Not IsInstallDir(GetProperDirectoryPath(filePath)) Then
                 WriteTranscludeFile(filePath)
             End If
         Next
@@ -344,12 +347,19 @@ Public Class Utility
 
         ' Add all files that aren't already in the .transclude file and are "of interest"
         For Each filePath As String In filesInDirectory
-            If _fileSync.IsFileOfInterest(filePath) AndAlso Not IsInstallDir(Path.GetDirectoryName(filePath)) Then
+            If _fileSync.IsFileOfInterest(filePath) AndAlso Not IsInstallDir(GetProperDirectoryPath(filePath)) Then
                 WriteTranscludeFile(filePath)
             End If
         Next
     End Sub
 
+    ''' <summary>
+    ''' This method returns the full path to the .tconfig file.
+    ''' </summary>
+    ''' <remarks>
+    ''' Method will throw an exception if the config file doesn't exist.
+    ''' </remarks>
+    ''' <returns></returns>
     Public Function GetConfigFilePath() As String
 
         Dim filePath As String
@@ -368,14 +378,74 @@ Public Class Utility
             filePath = configFilePath
         End If
 
+        ' Check if the config file exists
+        If Not File.Exists(filePath) Then
+            Throw New FileNotFoundException($"Config file not found at {filePath}")
+        End If
+
         Return filePath
     End Function
 
-    Public Sub ManualSync(Optional directoryToSync As String = Nothing) Implements IUtility.ManualSync
+    'Public Sub ManualSync(Optional directoryToSync As String = Nothing) Implements IUtility.ManualSync
 
+    '    Dim directoriesToSync As New List(Of String)
+
+    '    ' Check if a specific directory is provided and use that, otherwise use all directories in the config file
+    '    If Not String.IsNullOrEmpty(directoryToSync) Then
+    '        directoriesToSync.Add(directoryToSync)
+    '    Else
+    '        directoriesToSync = ReadTConfig()
+    '    End If
+
+    '    ' Filter out the application directory
+    '    directoriesToSync = FilterInstallDirFromList(directoriesToSync)
+
+    '    ' Catch empty list
+    '    If directoriesToSync.Count = 0 Then
+    '        _logger.LogWarning("{Method}: No root paths found.", NameOf(ManualSync))
+    '        Return
+    '    End If
+
+    '    ' Loop through all directories in the .tconfig file
+    '    For Each syncDir In directoriesToSync
+
+    '        ' Check if the directory exists
+    '        If Not String.IsNullOrEmpty(syncDir) AndAlso Directory.Exists(syncDir) Then
+
+    '            Dim transcludeFiles As List(Of String)
+
+    '            ' Check if the .transclude file exists
+    '            If ExistsTranscludeFileAtPath(syncDir) Then 'Path.Exists Then 'ExistsFileInTransclude(syncDir) Then
+    '                ' Read all files from the .transclude file
+    '                transcludeFiles = ReadTranscludeFile(syncDir)
+    '            Else
+    '                'Go to next directory if there are no files in the .transclude file
+    '                _logger.LogInformation("{Method}: No `.transclude` file found in directory: {Directory}", NameOf(ManualSync), syncDir)
+    '                Continue For
+    '            End If
+
+    '            ' Sync all files in the .transclude file
+    '            For Each filePath In transcludeFiles
+    '                Try
+    '                    If File.Exists(filePath) AndAlso _fileSync.IsFileOfInterest(filePath) Then
+    '                        _fileSync.SyncSourceToMarkdown(filePath)
+    '                    End If
+    '                Catch ex As Exception
+    '                    _logger.LogInformation("{Method}: Error syncing file: {FilePath}", NameOf(ManualSync), filePath)
+    '                End Try
+    '            Next
+
+    '        Else
+    '            _logger.LogInformation("{Method}: Directory does not exist: {Directory}", NameOf(ManualSync), syncDir)
+    '        End If
+
+    '    Next
+    'End Sub
+
+    Public Sub AdhocTranscode(Optional directoryToSync As String = Nothing) Implements IUtility.AdhocTranscode
         Dim directoriesToSync As New List(Of String)
 
-        ' Check if a specific directory is provided and use that, otherwise use all directories in the config file
+        ' Check if a specific directory is provided, otherwise use all directories in the config file
         If Not String.IsNullOrEmpty(directoryToSync) Then
             directoriesToSync.Add(directoryToSync)
         Else
@@ -387,45 +457,91 @@ Public Class Utility
 
         ' Catch empty list
         If directoriesToSync.Count = 0 Then
-            _logger.LogWarning("{Method}: No root paths found.", NameOf(ManualSync))
+            _logger.LogWarning("{Method}: No root paths found.", NameOf(AdhocTranscode))
             Return
         End If
 
-        ' Loop through all directories in the .tconfig file
         For Each syncDir In directoriesToSync
-
-            ' Check if the directory exists
-            If Not String.IsNullOrEmpty(syncDir) AndAlso Directory.Exists(syncDir) Then
-
-                Dim transcludeFiles As List(Of String)
-
-                ' Check if the .transclude file exists
-                If ExistsFileInTransclude(syncDir) Then
-                    ' Read all files from the .transclude file
-                    transcludeFiles = ReadTranscludeFile(syncDir)
-                Else
-                    'Go to next directory if there are no files in the .transclude file
-                    _logger.LogInformation("{Method}: No `.transclude` file found in directory: {Directory}", NameOf(ManualSync), syncDir)
-                    Continue For
-                End If
-
-                ' Sync all files in the .transclude file
-                For Each filePath In transcludeFiles
-                    Try
-                        If File.Exists(filePath) AndAlso _fileSync.IsFileOfInterest(filePath) Then
-                            _fileSync.SyncSourceToMarkdown(filePath)
-                        End If
-                    Catch ex As Exception
-                        _logger.LogInformation("{Method}: Error syncing file: {FilePath}", NameOf(ManualSync), filePath)
-                    End Try
-                Next
-
-            Else
-                _logger.LogInformation("{Method}: Directory does not exist: {Directory}", NameOf(ManualSync), syncDir)
-            End If
-
+            ' Recursively process each directory
+            RecurseSourceDirectories(syncDir)
         Next
     End Sub
+
+    Private Sub RecurseSourceDirectories(dirPath As String)
+
+        Dim existsTranscludeFile As Boolean = ExistsTranscludeFileAtPath(dirPath)
+
+        ' Check if the directory exists
+        If Not String.IsNullOrEmpty(dirPath) AndAlso Directory.Exists(dirPath) Then
+
+            ' Check if the directory contains a .transclude file and is not the application directory
+            If existsTranscludeFile AndAlso Not IsInstallDir(dirPath) Then
+                ' Process files in the current directory
+                TranscodeFilesInDirectory(dirPath)
+            Else
+                _logger.LogDebug("{Method}: Skipping directory because it does not contain a `.transclude` file: {Directory}", NameOf(RecurseSourceDirectories), dirPath)
+            End If
+
+            ' Get and process all subdirectories
+            Dim subDirectories As String() = Directory.GetDirectories(dirPath)
+            For Each subDir In subDirectories
+                RecurseSourceDirectories(subDir)
+            Next
+        Else
+            _logger.LogInformation("{Method}: Directory does not exist: {Directory}", NameOf(RecurseSourceDirectories), dirPath)
+        End If
+    End Sub
+
+    Private Sub TranscodeFilesInDirectory(dirPath As String)
+        Dim transcludeFiles As List(Of String) = ReadTranscludeFile(dirPath)
+
+        Dim tcodeCount As Integer = 0
+
+        ' Sync all files in the .transclude file
+        For Each filePath In transcludeFiles
+            Try
+                If File.Exists(filePath) AndAlso _fileSync.IsFileOfInterest(filePath) Then
+                    _fileSync.SyncSourceToMarkdown(filePath)
+                    tcodeCount += 1
+                End If
+            Catch ex As Exception
+                _logger.LogInformation("{Method}: Error transcoding file: {FilePath}", NameOf(TranscodeFilesInDirectory), filePath)
+            End Try
+        Next
+
+        _logger.LogDebug("{Method}: {TranscodeFileCount} files transcoded in directory: {Directory}", NameOf(TranscodeFilesInDirectory), tcodeCount, dirPath)
+
+    End Sub
+
+
+
+    ''' <summary>
+    ''' This method checks if the .transclude file exists in the directory.
+    ''' </summary>
+    ''' <param name="filePath">Full path of the directory to check.</param>
+    ''' <returns></returns>
+    Public Function ExistsTranscludeFileAtPath(filePath As String) As Boolean Implements IUtility.ExistsTranscludeFileAtPath
+        Dim exists As Boolean = False
+
+        Dim dirPath As String = GetProperDirectoryPath(filePath)
+
+        Dim transcludeFilePath As String = Path.Combine(dirPath, ".transclude")
+
+        Try
+            exists = File.Exists(transcludeFilePath)
+        Catch ex As Exception
+            _logger.LogError(ex, "{Method}: Error checking if file exists: {FilePath}", NameOf(ExistsTranscludeFileAtPath), filePath)
+        End Try
+
+        Return exists
+    End Function
+
+
+    ''' <summary>
+    ''' This method filters out the application directory from the list of directories.
+    ''' </summary>
+    ''' <param name="directories">List of directories to filter.</param>
+    ''' <returns></returns>
 
     ' Filter out the application directory
     Public Function FilterInstallDirFromList(directories As List(Of String)) As List(Of String) Implements IUtility.FilterInstallDirFromList
@@ -482,6 +598,111 @@ Public Class Utility
         Next
 
         Return filteredDirectories
+    End Function
+
+    Public Sub ListAllRefInLocalTranscodeFile() Implements IUtility.ListAllRefInLocalTranscodeFile
+        Dim currentDirectoryPath As String = Directory.GetCurrentDirectory()
+        ' Lists the content of the .transclude file in the current directory
+
+        Dim fileList As List(Of String)
+
+        Try
+            fileList = ReadTranscludeFile(currentDirectoryPath)
+        Catch ex As FileNotFoundException
+            _logger.LogInformation("{Method}: No `.transclude` file found in directory: {Directory}", NameOf(ListAllRefInLocalTranscodeFile), currentDirectoryPath)
+        Catch ex As Exception
+            _logger.LogError(ex, "{Method}: Error reading .transclude file in directory: {Directory}", NameOf(ListAllRefInLocalTranscodeFile), currentDirectoryPath)
+            Return
+        End Try
+
+        If fileList.Count = 0 Then
+            _logger.LogInformation("{Method}: No files found in `.transclude` file in directory: {Directory}", NameOf(ListAllRefInLocalTranscodeFile), currentDirectoryPath)
+            Return
+        End If
+
+        For Each f In fileList
+            '_logger.LogInformation("{Method}: {File}", NameOf(ListAllRefInLocalTranscodeFile), f)
+            System.Console.WriteLine(f)
+        Next
+    End Sub
+
+    Public Sub ListAllRefInConfigFile() Implements IUtility.ListAllRefInConfigFile
+
+        Dim configFilePath As String '= GetConfigFilePath()
+
+        'Test if the config file exists
+        Try
+            configFilePath = GetConfigFilePath()
+        Catch ex As FileNotFoundException
+            _logger.LogInformation("{Method}: No `.tconfig` file found in directory: {Directory}", NameOf(ListAllRefInConfigFile), configFilePath)
+            Return
+        Catch ex As Exception
+            _logger.LogError(ex, "{Method}: Error reading .tconfig file in directory: {Directory}", NameOf(ListAllRefInConfigFile), configFilePath)
+            Return
+        End Try
+
+
+        Dim fileList As List(Of String)
+
+        Try
+            fileList = ReadTConfig()
+        Catch ex As Exception
+            _logger.LogError(ex, "{Method}: Error reading .tconfig file in directory: {Directory}", NameOf(ListAllRefInConfigFile), configFilePath)
+            Return
+        End Try
+
+        If fileList.Count = 0 Then
+            _logger.LogInformation("{Method}: No files found in `.tconfig` file in directory: {Directory}", NameOf(ListAllRefInConfigFile), configFilePath)
+            Return
+        End If
+
+        For Each f In fileList
+            '_logger.LogInformation("{Method}: {File}", NameOf(ListAllRefInConfigFile), file)
+            System.Console.WriteLine(f)
+        Next
+    End Sub
+
+
+    ''' <summary>
+    ''' Returns the correct directory path for a given file or directory path.
+    ''' This function is a fix for the limitation of Path.GetDirectoryName, which 
+    ''' does not accurately distinguish between file paths and directory paths.
+    ''' </summary>
+    ''' <param name="path">The file or directory path to evaluate.</param>
+    ''' <returns>The directory path if the input is a directory, or the parent directory if the input is a file path.</returns>
+    ''' <remarks>
+    ''' In the .NET framework, Path.GetDirectoryName treats the last segment of a path as a file name and returns 
+    ''' its directory. However, this behavior is not accurate when the path is actually a directory.
+    ''' 
+    ''' This custom function checks whether the provided path is a directory or a file:
+    ''' - If it's a directory, it returns the directory path as is.
+    ''' - If it's a file, it returns the directory containing the file.
+    ''' - If the path doesn't exist, it makes an educated guess based on the presence of a file extension.
+    ''' 
+    ''' This approach ensures that the correct directory path is returned regardless of whether the 
+    ''' path is to a file or a directory, making it more reliable for various filesystem operations.
+    ''' </remarks>
+    Public Function GetProperDirectoryPath(targetPath As String) As String Implements IUtility.GetProperDirectoryPath
+        If String.IsNullOrEmpty(targetPath) Then
+            Return String.Empty
+        End If
+
+        ' Check if the path is a directory
+        If Directory.Exists(targetPath) Then
+            ' It's a directory; return it as is
+            Return targetPath
+        ElseIf File.Exists(targetPath) Then
+            ' It's a file; return the directory containing the file
+            Return Path.GetDirectoryName(targetPath)
+        Else
+            ' If the path doesn't exist, make an educated guess
+            ' If the path has an extension, assume it's a file; otherwise, treat it as a directory
+            If Path.HasExtension(targetPath) Then
+                Return Path.GetDirectoryName(targetPath)
+            Else
+                Return targetPath
+            End If
+        End If
     End Function
 
 
