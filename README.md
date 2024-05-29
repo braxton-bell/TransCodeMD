@@ -3,7 +3,7 @@
 TranscodeMD was a fun little project I picked up to keep my VB.NET skills fresh and, let's be honest, to distract myself from work for a while `¯\_(ツ)_/¯` . Despite being a work in progress, TranscodeMD has already implemented its core functionalities.
 
 
-> For a detailed project summary, please refer to the [TranscodeMD App Dev Project Summary](./documentation/TranscodeMD%20App%20Dev%20Project%20Summary.md).
+> For a detailed project summary, please refer to the [TranscodeMD App Dev Project Summary](./documentation/TransCodeMD%20App%20Dev%20Project%20Summary.md).
 
 
 ## Key Features
