@@ -2,6 +2,10 @@
 
 TransCodeMD was a fun little project I picked up to keep my VB.NET skills fresh and, let's be honest, to distract myself from work for a while `¯\_(ツ)_/¯` . Despite being a work in progress, TransCodeMD has already implemented its core functionalities.
 
+
+> For a detailed project summary, please refer to the [TransCodeMD App Dev Project Summary](./documentation/TransCodeMD%20App%20Dev%20Project%20Summary.md).
+
+
 ## Key Features
 
 - **Source Code Transcoding:** TransCodeMD specializes in 'transcoding' - a process where it creates Markdown files from various source code files (such as .py, .cs, .vb, .ps1). These Markdown files act as simple wrappers or aliases for the original source code. You can easily include these alias Markdown files into other documentation, especially in applications like Obsidian that support transclusion.

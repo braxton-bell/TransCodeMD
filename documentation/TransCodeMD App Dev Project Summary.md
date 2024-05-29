@@ -1,22 +1,22 @@
-# TransCodeMD App Dev Project Summary
+### TransCodeMD App Dev Project Summary
 
-**Project Description: Enhancing Markdown Documentation with Source Code Transclusion Using VB.NET**
+**Project Description:** Enhancing Markdown Documentation with Source Code Transclusion Using VB.NET
 
-**Objective:** 
+**Objective:**
 Develop a VB.NET application to seamlessly integrate and synchronize source code with Markdown documentation, enabling direct transclusion of code into Markdown files. This solution addresses the limitation in native Markdown specifications, which do not allow direct transclusion of code blocks from script documents.
 
 **Key Features and Process:**
 
-1. **Source Code Transclusion:** 
+1. **Source Code Transclusion:**
    - The application allows for the inclusion of various source code files (.py, .cs, .vb, .ps1, etc.) in Markdown documents, overcoming the limitations of native Markdown through a workaround.
-   - It maintains a dual-file system: the original source code file and its corresponding Markdown representation. 
+   - It maintains a dual-file system: the original source code file and its corresponding Markdown representation.
    - The Markdown file serves as the transcludable document in other Markdown files, ensuring a single source of truth.
 
 2. **Example Implementation:**
    - **Original Source Code (`myScript.vb`):**
      ```vb
      -------------------------------------------
-	 |Public Class TestClass                   |
+     |Public Class TestClass                   |
      |  Public Sub New()                       |
      |    Write.Console("Hello, world!")       |
      |  End Sub                                |
@@ -25,15 +25,15 @@ Develop a VB.NET application to seamlessly integrate and synchronize source code
      ```
    - **Markdown Representation (`myScript.vb.md`):**
      ```markdown
-    ---------------------------------------------
-	| ``vb                                       |
-    | Public Class TestClass                     |
-    |   Public Sub New()                         |
-    |     Write.Console("Hello, world!")         |
-    |   End Sub                                  |
-    | End Class                                  |
-    | ``                                         |
-    ---------------------------------------------- 
+     ---------------------------------------------
+     |```vb                                       |
+     | Public Class TestClass                     |
+     |   Public Sub New()                         |
+     |     Write.Console("Hello, world!")         |
+     |   End Sub                                  |
+     | End Class                                  |
+     |```                                         |
+     ----------------------------------------------
      ```
 
    - The Markdown file (`myScript.vb.md`) is what will be transcluded into other Markdown documents.
