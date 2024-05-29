@@ -1,4 +1,4 @@
-### TransCodeMD App Dev Project Summary
+### TranscodeMD App Dev Project Summary
 
 **Project Description:** Enhancing Markdown Documentation with Source Code Transclusion Using VB.NET
 
